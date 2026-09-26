@@ -2,33 +2,19 @@
   "name": "convohatch",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings --test \"tests/*.test.ts\"",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build"
+    "dev": "npm run dev -w @convohatch/website",
+    "build": "npm run build -w @convohatch/website",
+    "start": "npm run start -w @convohatch/website",
+    "lint": "npm run lint -w @convohatch/website",
+    "typecheck": "npm run typecheck -w @convohatch/website",
+    "test": "npm test -w @convohatch/website",
+    "check": "npm run check -w @convohatch/website"
   },
   "engines": {
     "node": ">=22.6"
-  },
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.128.0",
-    "next": "^15.5.4",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
-    "@tailwindcss/postcss": "^4.1.13",
-    "@types/node": "^22.18.0",
-    "@types/react": "^19.1.13",
-    "@types/react-dom": "^19.1.9",
-    "eslint": "^9.36.0",
-    "eslint-config-next": "^15.5.4",
-    "tailwindcss": "^4.1.13",
-    "typescript": "^5.9.2"
   }
 }

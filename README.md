@@ -1,12 +1,23 @@
-# ConvoHatch website
+# ConvoHatch
 
-Marketing site for ConvoHatch, which adds custom chatbots to websites for local service businesses (HVAC first, then plumbing, electrical, roofing, and other trades).
+ConvoHatch adds custom chatbots to websites for local service businesses (HVAC first, then plumbing, electrical, roofing, and other trades).
 
-Built with Next.js (App Router), TypeScript, and Tailwind CSS v4. Fonts are Outfit (headings) and Manrope (body), loaded with `next/font/google`.
+## Repository structure
+
+This repository is an npm workspaces monorepo:
+
+| Path | What it is |
+| --- | --- |
+| `apps/website` | The ConvoHatch marketing website: Next.js (App Router), TypeScript, and Tailwind CSS v4. Fonts are Outfit (headings) and Manrope (body), loaded with `next/font/google`. |
+| `apps/chatbot` | Placeholder for the upcoming chatbot application. Not implemented yet. |
+| `package.json` | Workspace root, with shortcut commands for the website. |
+| `package-lock.json` | The single lockfile for all workspaces. Run `npm install` from the root only. |
+
+Unless noted otherwise, paths in the sections below are relative to `apps/website`.
 
 ## Run locally
 
-Requires Node.js 22.6 or newer (Node 22 LTS or 24 LTS).
+Requires Node.js 22.6 or newer (Node 22 LTS or 24 LTS). From the repository root:
 
 ```bash
 npm install
@@ -15,21 +26,32 @@ npm run dev
 
 Then open http://localhost:3000.
 
+For local environment variables, copy `apps/website/.env.example` to `apps/website/.env.local`. Next.js reads env files from the app's folder, not the repository root. `.env*` files other than `.env.example` are ignored by Git.
+
 ## Checks
+
+Run these from the repository root. Each one runs in the website workspace. To run one inside `apps/website` instead, `cd apps/website` and use the same command.
 
 | Command | What it does |
 | --- | --- |
 | `npm run lint` | ESLint (Next.js core-web-vitals + TypeScript rules) |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Unit tests for the demo chatbot script and form validation (Node's built-in test runner) |
+| `npm test` | Unit tests for the demo chatbot, booking, pricing, form validation, and site assistant (Node's built-in test runner) |
 | `npm run build` | Production build |
-| `npm run check` | All of the above, in order |
+| `npm start` | Serve the production build |
+| `npm run check` | Lint, typecheck, tests, and build, in order |
+
+To add a dependency to the website, run `npm install <package> -w @convohatch/website` from the root.
+
+## Deployment (Vercel)
+
+The website deploys to Vercel from this repository. In the Vercel project settings, set **Root Directory** to `apps/website` and keep **Include files outside the root directory in the Build Step** enabled. Vercel then installs dependencies from the root lockfile and builds the website workspace. Leave the framework preset as Next.js, with the default build and install commands. Environment variables are set in Vercel and are unaffected by the move.
 
 ## Demo request form: configure before launch
 
-The "Request a Demo" form posts to `app/api/demo-request/route.ts`, which delivers requests using server-side environment variables. **Until one delivery option is configured, the form shows that online requests are unavailable and its fields are disabled.** It never shows a success message unless delivery succeeded.
+The "Request a Demo" form posts to `apps/website/app/api/demo-request/route.ts`, which delivers requests using server-side environment variables. **Until one delivery option is configured, the form shows that online requests are unavailable and its fields are disabled.** It never shows a success message unless delivery succeeded.
 
-1. Copy `.env.example` to `.env.local` (local) or add the same variables in your host's settings (production).
+1. Copy `apps/website/.env.example` to `apps/website/.env.local` (local) or add the same variables in your host's settings (production).
 2. Configure **one** option:
    - **Email via [Resend](https://resend.com):** set `RESEND_API_KEY`, `DEMO_REQUEST_TO_EMAIL`, and `DEMO_REQUEST_FROM_EMAIL`. The sender must be on a domain you have verified in Resend. The visitor's email is set as `reply_to`.
    - **Webhook:** set `DEMO_REQUEST_WEBHOOK_URL` (must be `https://`), for example a Zapier, Make, or n8n hook, or a CRM endpoint. Optionally set `DEMO_REQUEST_WEBHOOK_SECRET`, which is sent as `Authorization: Bearer <secret>`. The body is JSON: `{ type, submittedAt, name, business, email, website, trade, message }`.
