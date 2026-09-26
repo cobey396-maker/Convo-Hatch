@@ -1,0 +1,8 @@
+# Local embedded database (DATABASE_URL=pglite:./.data/pglite) and browser-test screenshots
+/.data/
+/.e2e-screenshots/
+
+# Client configs contain contractor contact details: only the demo and the template are tracked
+/db/clients/*.json
+!/db/clients/demo-cedar-hollow.json
+!/db/clients/example-client.json

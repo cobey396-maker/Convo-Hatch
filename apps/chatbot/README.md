@@ -39,14 +39,15 @@ Contractor's website                           This app (apps/chatbot)
 
 ## Run locally
 
-Requires Node.js 22.6 or newer. From the repository root:
+Requires Node.js 22.6 or newer. Install once from the repository root (npm workspaces share one lockfile), then work inside `apps/chatbot`. Every command below runs from `apps/chatbot`.
 
 ```bash
-npm install
-cp apps/chatbot/.env.example apps/chatbot/.env.local    # DATABASE_URL=pglite:./.data/pglite is preset
-npm run widget -- seed                                  # creates the database and the fictional demo client
-npm run dev:chatbot                                     # chatbot app on http://localhost:3001
-npm run demo:site                                       # in a second terminal: demo contractor site on http://localhost:4000
+npm install                      # at the repository root
+cd apps/chatbot
+cp .env.example .env.local       # DATABASE_URL=pglite:./.data/pglite is preset
+npm run widget -- seed           # creates the database and the fictional demo client
+npm run dev                      # chatbot app on http://localhost:3001
+npm run demo:site                # in a second terminal: demo contractor site on http://localhost:4000
 ```
 
 Open http://localhost:4000 and use the chat button in the corner.
@@ -57,7 +58,7 @@ Open http://localhost:4000 and use the chat button in the corner.
 
 ## Checks
 
-From the repository root, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run check` run in both apps. Inside `apps/chatbot`:
+Inside `apps/chatbot` (from the repository root, add `-w @convohatch/chatbot`, e.g. `npm test -w @convohatch/chatbot`):
 
 | Command | What it does |
 | --- | --- |
@@ -68,10 +69,10 @@ From the repository root, `npm run lint`, `npm run typecheck`, `npm test`, and `
 
 ### Browser test
 
-Needs Playwright (`npm i -D playwright -w @convohatch/chatbot` and `npx playwright install chromium`, or set `PLAYWRIGHT_MODULE` and `CHROMIUM_PATH` to an existing install). Run `npm run widget -- seed`, then build and start the app with the per-visitor limits raised (every test run starts several chats from the same IP, and the default limit of 10 chats per hour would otherwise kick in, correctly), and start the demo site:
+Needs Playwright (`npm i -D playwright` and `npx playwright install chromium`, or set `PLAYWRIGHT_MODULE` and `CHROMIUM_PATH` to an existing install). Run `npm run widget -- seed`, then build and start the app with the per-visitor limits raised (every test run starts several chats from the same IP, and the default limit of 10 chats per hour would otherwise kick in, correctly), and start the demo site:
 
 ```bash
-cd apps/chatbot && npm run build
+npm run build
 WIDGET_VISITOR_CONVERSATIONS_PER_HOUR=1000 WIDGET_VISITOR_MESSAGES_PER_10_MIN=1000 WIDGET_VISITOR_LEADS_PER_HOUR=1000 npm start
 npm run demo:site        # second terminal
 ```
@@ -79,7 +80,7 @@ npm run demo:site        # second terminal
 Then:
 
 ```bash
-npm run test:e2e -w @convohatch/chatbot
+npm run test:e2e
 ```
 
 It checks, on the demo contractor site: the launcher is reachable with Tab; Enter opens the chat and moves focus into it; ZIP, repair, and FAQ answers; the callback form's error handling, review step, and submission, entirely by keyboard; Escape closes and returns focus; on an iPhone-sized screen the launcher sits above the site's sticky call bar and the chat is full screen; an unapproved website (`127.0.0.1:4000`) and an unknown client ID get no launcher. Screenshots go to `.e2e-screenshots/`.
@@ -88,7 +89,7 @@ It checks, on the demo contractor site: the launcher is reachable with Tab; Ente
 
 Clients are configured with JSON files and the admin CLI. There is deliberately no web admin yet: the CLI talks to the database directly, so only someone with the database credentials can change a client.
 
-1. Copy the template: `cp apps/chatbot/db/clients/example-client.json apps/chatbot/db/clients/acme-heating.json`. Client files contain the contractor's email, so Git ignores everything in `db/clients/` except the demo and the template. Keep your own copies somewhere private and backed up.
+1. Copy the template: `cp db/clients/example-client.json db/clients/acme-heating.json`. Client files contain the contractor's email, so Git ignores everything in `db/clients/` except the demo and the template. Keep your own copies somewhere private and backed up.
 2. Fill it in with **the contractor's approved wording only**. The AI treats this as the complete truth and says "I don't have that information" for anything missing.
 
    | Field | Meaning |
@@ -109,8 +110,8 @@ Clients are configured with JSON files and the admin CLI. There is deliberately 
 3. Validate, then save:
 
    ```bash
-   npm run widget -- client:check apps/chatbot/db/clients/acme-heating.json
-   DATABASE_URL=postgres://… npm run widget -- client:upsert apps/chatbot/db/clients/acme-heating.json
+   npm run widget -- client:check db/clients/acme-heating.json
+   DATABASE_URL=postgres://… npm run widget -- client:upsert db/clients/acme-heating.json
    ```
 
    `client:upsert` refuses files that still contain template placeholders. Run it again after any edit; changes apply immediately (framing permissions within a minute).

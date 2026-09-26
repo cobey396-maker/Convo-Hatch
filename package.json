@@ -9,15 +9,10 @@
     "dev": "npm run dev -w @convohatch/website",
     "build": "npm run build -w @convohatch/website",
     "start": "npm run start -w @convohatch/website",
-    "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm test --workspaces --if-present",
-    "check": "npm run check --workspaces --if-present",
-    "dev:chatbot": "npm run dev -w @convohatch/chatbot",
-    "build:chatbot": "npm run build -w @convohatch/chatbot",
-    "start:chatbot": "npm run start -w @convohatch/chatbot",
-    "widget": "npm run widget -w @convohatch/chatbot --",
-    "demo:site": "npm run demo:site -w @convohatch/chatbot"
+    "lint": "npm run lint -w @convohatch/website",
+    "typecheck": "npm run typecheck -w @convohatch/website",
+    "test": "npm test -w @convohatch/website",
+    "check": "npm run check -w @convohatch/website"
   },
   "engines": {
     "node": ">=22.6"
