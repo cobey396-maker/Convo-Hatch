@@ -37,6 +37,8 @@ export interface BookingDay {
   date: string;
   /** Slot start times as UTC ISO strings. */
   slots: string[];
+  /** The subset of `slots` that someone has already booked. Shown crossed out on the calendar. */
+  booked?: string[];
 }
 
 interface ZonedParts {
