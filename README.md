@@ -9,11 +9,11 @@ This repository is an npm workspaces monorepo:
 | Path | What it is |
 | --- | --- |
 | `apps/website` | The ConvoHatch marketing website: Next.js (App Router), TypeScript, and Tailwind CSS v4. Fonts are Outfit (headings) and Manrope (body), loaded with `next/font/google`. |
-| `apps/chatbot` | Placeholder for the upcoming chatbot application. Not implemented yet. |
-| `package.json` | Workspace root, with shortcut commands for the website. |
+| `apps/chatbot` | The hosted, embeddable HVAC chatbot: a separate Next.js app with the widget loader, chat panel, API, database migrations, admin CLI, and a fictional demo contractor site. See [`apps/chatbot/README.md`](apps/chatbot/README.md). |
+| `package.json` | Workspace root, with shortcut commands for both apps. |
 | `package-lock.json` | The single lockfile for all workspaces. Run `npm install` from the root only. |
 
-Unless noted otherwise, paths in the sections below are relative to `apps/website`.
+Unless noted otherwise, paths in the sections below are relative to `apps/website`. The chatbot service has its own guide in [`apps/chatbot/README.md`](apps/chatbot/README.md) (run it with `npm run dev:chatbot`, on port 3001).
 
 ## Run locally
 
@@ -30,7 +30,7 @@ For local environment variables, copy `apps/website/.env.example` to `apps/websi
 
 ## Checks
 
-Run these from the repository root. Each one runs in the website workspace. To run one inside `apps/website` instead, `cd apps/website` and use the same command.
+Run these from the repository root. `lint`, `typecheck`, `test`, and `check` run in every workspace (website and chatbot); `build` and `start` target the website (use `build:chatbot` / `start:chatbot` for the chatbot). To run one inside a single app, `cd` into it and use the same command.
 
 | Command | What it does |
 | --- | --- |
