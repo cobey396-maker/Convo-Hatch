@@ -74,7 +74,7 @@ Notes:
   - **Text to your phone (Twilio):** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `BOOKING_NOTIFY_PHONE`. US numbers need toll-free verification or A2P 10DLC registration in Twilio first, which can take a few days.
   - **Free push notification (ntfy):** install the ntfy app, subscribe to a long, hard-to-guess topic name, and set `NTFY_TOPIC` to it. Works right away.
   - **Email / webhook:** the Resend and webhook settings from the demo form also receive bookings. With Resend set up, the visitor also gets a confirmation email.
-- **Double booking:** add Upstash Redis from the Vercel Marketplace (it sets `KV_REST_API_URL` and `KV_REST_API_TOKEN`) so booked times disappear from the calendar. Without it, every time stays open, and you sort out any clash when you send the Zoom link.
+- **Double booking:** add Upstash Redis from the Vercel Marketplace (it sets `KV_REST_API_URL` and `KV_REST_API_TOKEN`) so booked times show crossed out on the calendar and can't be picked again. A day with every time booked is crossed out too. Without it, every time stays open, and you sort out any clash when you send the Zoom link.
 - The notification includes the time, name, email, and phone number. Reply to the visitor with your Zoom link.
 
 ## Site assistant (chat button)

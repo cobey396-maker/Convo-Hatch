@@ -84,6 +84,8 @@ export function BookingCalendar() {
   }, [booked]);
 
   const byDate = useMemo(() => new Map(days.map((day) => [day.date, day.slots])), [days]);
+  const bookedSlots = useMemo(() => new Set(days.flatMap((day) => day.booked ?? [])), [days]);
+  const hasOpenSlot = (day: string) => (byDate.get(day) ?? []).some((value) => !bookedSlots.has(value));
   const months = useMemo(() => [...new Set(days.map((day) => monthKey(day.date)))], [days]);
   const monthIndex = months.indexOf(month);
 
@@ -212,7 +214,7 @@ export function BookingCalendar() {
     );
   }
 
-  if (days.length === 0) {
+  if (!days.some((day) => hasOpenSlot(day.date))) {
     return (
       <Card>
         <p role="status" className="font-medium">
@@ -270,7 +272,10 @@ export function BookingCalendar() {
             ))}
             {cells.map((cell, index) => {
               if (!cell) return <div key={`blank-${index}`} aria-hidden="true" />;
-              const open = byDate.has(cell);
+              const scheduled = byDate.has(cell);
+              const open = scheduled && hasOpenSlot(cell);
+              // Days with bookable hours but every time taken are crossed out, like booked times.
+              const fullyBooked = scheduled && !open;
               const selected = cell === date;
               const dayNumber = Number(cell.slice(8));
               return (
@@ -281,14 +286,14 @@ export function BookingCalendar() {
                   aria-pressed={selected}
                   aria-label={`${new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(
                     new Date(Date.UTC(year, monthNumber - 1, dayNumber)),
-                  )}${open ? "" : ", no times available"}`}
+                  )}${open ? "" : fullyBooked ? ", fully booked" : ", no times available"}`}
                   onClick={() => chooseDate(cell)}
                   className={`aspect-square min-h-10 rounded-xl text-base font-semibold transition-colors ${
                     selected
                       ? "bg-ocean text-white"
                       : open
                         ? "bg-sky-soft text-ocean hover:bg-sky"
-                        : "cursor-not-allowed text-petrol-soft/50"
+                        : `cursor-not-allowed text-petrol-soft/50 ${fullyBooked ? "line-through" : ""}`
                   }`}
                 >
                   {dayNumber}
@@ -315,20 +320,29 @@ export function BookingCalendar() {
           ) : null}
           {date ? (
             <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
-              {slots.map((value) => (
-                <li key={value}>
-                  <button
-                    type="button"
-                    aria-pressed={value === slot}
-                    onClick={() => chooseSlot(value)}
-                    className={`w-full rounded-xl px-3 py-2.5 font-semibold ring-1 transition-colors ring-inset ${
-                      value === slot ? "bg-ocean text-white ring-ocean" : "bg-white text-ocean ring-line hover:ring-ocean"
-                    }`}
-                  >
-                    {timeLabel(value)}
-                  </button>
-                </li>
-              ))}
+              {slots.map((value) => {
+                const taken = bookedSlots.has(value);
+                return (
+                  <li key={value}>
+                    <button
+                      type="button"
+                      disabled={taken}
+                      aria-pressed={taken ? undefined : value === slot}
+                      aria-label={taken ? `${timeLabel(value)}, booked` : undefined}
+                      onClick={() => chooseSlot(value)}
+                      className={`w-full rounded-xl px-3 py-2.5 font-semibold ring-1 transition-colors ring-inset ${
+                        taken
+                          ? "cursor-not-allowed bg-ice text-petrol-soft line-through ring-line"
+                          : value === slot
+                            ? "bg-ocean text-white ring-ocean"
+                            : "bg-white text-ocean ring-line hover:ring-ocean"
+                      }`}
+                    >
+                      {timeLabel(value)}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="text-petrol-soft">Pick a highlighted day to see open 30-minute times.</p>

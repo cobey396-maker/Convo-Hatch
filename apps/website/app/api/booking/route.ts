@@ -32,7 +32,7 @@ function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: NO_STORE });
 }
 
-/** Open slots for the calendar, minus any already booked. Reveals nothing about the configuration. */
+/** Slots for the calendar, with the booked ones marked. Reveals nothing about the configuration. */
 export async function GET() {
   if (getNotifyChannels().length === 0) {
     return json({ available: false, timeZone: schedule.timeZone, days: [] });
@@ -46,10 +46,9 @@ export async function GET() {
     console.error("[booking] could not read booked slots", { status: error instanceof Error ? error.message : "unknown" });
   }
 
-  const open = days
-    .map((day) => ({ date: day.date, slots: day.slots.filter((slot) => !taken.has(slot)) }))
-    .filter((day) => day.slots.length > 0);
-  return json({ available: true, timeZone: schedule.timeZone, days: open });
+  // Booked slots stay in the list so the calendar can show them crossed out.
+  const withBooked = days.map((day) => ({ ...day, booked: day.slots.filter((slot) => taken.has(slot)) }));
+  return json({ available: true, timeZone: schedule.timeZone, days: withBooked });
 }
 
 export async function POST(request: Request) {
