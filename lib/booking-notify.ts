@@ -43,9 +43,47 @@ function ownerText(input: BookingInput): string {
   ].join("\n");
 }
 
+/** Why a channel failed, safe to log: provider status plus its error text with contact details removed. */
+export class NotifyError extends Error {
+  readonly status: number | "network";
+  readonly detail: string;
+
+  constructor(status: number | "network", detail: string) {
+    super(`${status}${detail ? `: ${detail}` : ""}`);
+    this.name = "NotifyError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+function redact(text: string): string {
+  return text
+    .replace(/[^\s@"]+@[^\s@"]+\.[^\s@"]+/g, "[email]")
+    .replace(/\+?\d[\d\s().-]{6,}\d/g, "[number]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+}
+
 async function send(url: string, init: RequestInit): Promise<void> {
-  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-  if (!response.ok) throw new Error(String(response.status));
+  let response: Response;
+  try {
+    response = await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  } catch (error) {
+    throw new NotifyError("network", redact(error instanceof Error ? error.message : ""));
+  }
+  if (!response.ok) throw new NotifyError(response.status, redact(await response.text().catch(() => "")));
+}
+
+/**
+ * The ntfy URL to publish to. Accepts a bare topic ("my-topic"), "ntfy.sh/my-topic", or a full
+ * URL ("https://ntfy.sh/my-topic"), since the app shows topics in all three forms.
+ */
+export function ntfyUrl(topic = env("NTFY_TOPIC"), server = env("NTFY_SERVER") || "https://ntfy.sh"): string {
+  const value = topic.trim().replace(/\/+$/, "");
+  if (/^https?:\/\//i.test(value)) return value;
+  const bare = value.replace(/^(www\.)?ntfy\.sh\//i, "").replace(/^\/+/, "");
+  return `${server.replace(/\/+$/, "")}/${encodeURIComponent(bare)}`;
 }
 
 async function notify(channel: NotifyChannel, input: BookingInput, bookedAt: string): Promise<void> {
@@ -65,8 +103,7 @@ async function notify(channel: NotifyChannel, input: BookingInput, bookedAt: str
       return;
     }
     case "ntfy": {
-      const server = env("NTFY_SERVER") || "https://ntfy.sh";
-      await send(`${server.replace(/\/+$/, "")}/${encodeURIComponent(env("NTFY_TOPIC"))}`, {
+      await send(ntfyUrl(), {
         method: "POST",
         headers: { Title: "New call booked", Tags: "calendar", Priority: "high" },
         body: text,
@@ -112,14 +149,35 @@ async function notify(channel: NotifyChannel, input: BookingInput, bookedAt: str
 
 /**
  * Sends the booking to every configured channel. Succeeds if at least one channel delivered it,
- * so one broken provider doesn't lose the booking. Returns the channels that failed.
+ * so one broken provider doesn't lose the booking. Returns why any channels failed.
  */
-export async function notifyOwner(channels: NotifyChannel[], input: BookingInput): Promise<NotifyChannel[]> {
+export interface NotifyFailure {
+  channel: NotifyChannel;
+  reason: string;
+}
+
+export class AllChannelsFailedError extends Error {
+  readonly failures: NotifyFailure[];
+
+  constructor(failures: NotifyFailure[]) {
+    super("all notification channels failed");
+    this.name = "AllChannelsFailedError";
+    this.failures = failures;
+  }
+}
+
+export async function notifyOwner(channels: NotifyChannel[], input: BookingInput): Promise<NotifyFailure[]> {
   const bookedAt = new Date().toISOString();
   const results = await Promise.allSettled(channels.map((channel) => notify(channel, input, bookedAt)));
-  const failed = channels.filter((_, index) => results[index].status === "rejected");
-  if (failed.length === channels.length) throw new Error("all notification channels failed");
-  return failed;
+  const failures: NotifyFailure[] = [];
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      const reason = result.reason instanceof NotifyError ? result.reason.message : "unknown error";
+      failures.push({ channel: channels[index], reason });
+    }
+  });
+  if (failures.length === channels.length) throw new AllChannelsFailedError(failures);
+  return failures;
 }
 
 /** Best-effort confirmation email to the visitor. Only sent when Resend is configured. */

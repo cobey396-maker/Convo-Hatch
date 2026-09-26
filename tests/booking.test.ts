@@ -8,7 +8,7 @@ import {
   validateBooking,
   zonedTimeToUtc,
 } from "../lib/booking.ts";
-import { getNotifyChannels } from "../lib/booking-notify.ts";
+import { AllChannelsFailedError, getNotifyChannels, notifyOwner, ntfyUrl } from "../lib/booking-notify.ts";
 
 const TZ = "America/New_York";
 // Sunday, September 27, 2026 at 8:00 AM Eastern.
@@ -116,5 +116,34 @@ test("booking is unavailable until a notification channel is configured", () => 
       if (saved[key] === undefined) delete process.env[key];
       else process.env[key] = saved[key];
     }
+  }
+});
+
+test("accepts the ntfy topic as a bare name, ntfy.sh/name, or full URL", () => {
+  assert.equal(ntfyUrl("convohatch-bookings"), "https://ntfy.sh/convohatch-bookings");
+  assert.equal(ntfyUrl(" ntfy.sh/convohatch-bookings "), "https://ntfy.sh/convohatch-bookings");
+  assert.equal(ntfyUrl("https://ntfy.sh/convohatch-bookings/"), "https://ntfy.sh/convohatch-bookings");
+  assert.equal(ntfyUrl("my-topic", "https://ntfy.example.com/"), "https://ntfy.example.com/my-topic");
+});
+
+test("reports why every channel failed, without the visitor's details", async () => {
+  const saved = { fetch: globalThis.fetch, topic: process.env.NTFY_TOPIC };
+  process.env.NTFY_TOPIC = "convohatch-bookings";
+  globalThis.fetch = (async () =>
+    new Response('{"code":40010,"error":"invalid topic, sent by alex@example.com (555) 123-4567"}', { status: 400 })) as typeof fetch;
+  try {
+    const input = { slot: "2026-09-28T21:00:00.000Z", name: "Alex Rivera", email: "alex@example.com", phone: "(555) 123-4567" };
+    await assert.rejects(notifyOwner(["ntfy"], input), (error: unknown) => {
+      assert.ok(error instanceof AllChannelsFailedError);
+      const [failure] = error.failures;
+      assert.equal(failure.channel, "ntfy");
+      assert.match(failure.reason, /^400: .*invalid topic/);
+      assert.doesNotMatch(failure.reason, /alex@example\.com|123-4567/);
+      return true;
+    });
+  } finally {
+    globalThis.fetch = saved.fetch;
+    if (saved.topic === undefined) delete process.env.NTFY_TOPIC;
+    else process.env.NTFY_TOPIC = saved.topic;
   }
 });

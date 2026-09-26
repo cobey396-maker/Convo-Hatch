@@ -236,6 +236,7 @@ export const schedule = {
   success: "You’re booked. We’ll send a Zoom link to your email before the call.",
   taken: "Sorry, someone just booked that time. Please pick another.",
   failure: "Sorry, we couldn’t book that time just now. Please try again in a few minutes.",
+  rateLimited: "You’ve tried to book several times in a short period. Please wait a few minutes and try again.",
 } as const;
 
 export const pricing = {

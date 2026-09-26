@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { schedule } from "@/content/site";
 import { getBookingDays, hasBookingErrors, isBookableSlot, normalizeBooking, validateBooking } from "@/lib/booking";
-import { confirmToVisitor, getNotifyChannels, notifyOwner } from "@/lib/booking-notify";
+import { AllChannelsFailedError, confirmToVisitor, getNotifyChannels, notifyOwner } from "@/lib/booking-notify";
 import { claimSlot, getTakenSlots, releaseSlot } from "@/lib/booking-store";
 
 export const dynamic = "force-dynamic";
@@ -103,11 +103,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const failed = await notifyOwner(channels, input);
+    const failures = await notifyOwner(channels, input);
     // Log only non-personal diagnostics. Never log the submitted fields.
-    if (failed.length > 0) console.error("[booking] some notifications failed", { failed });
-  } catch {
-    console.error("[booking] all notifications failed", { channels });
+    if (failures.length > 0) console.error("[booking] some notifications failed", { failures });
+  } catch (error) {
+    console.error("[booking] all notifications failed", {
+      failures: error instanceof AllChannelsFailedError ? error.failures : channels,
+    });
     if (claimed) await releaseSlot(input.slot).catch(() => undefined);
     return json({ ok: false, error: "delivery_failed" }, 502);
   }
