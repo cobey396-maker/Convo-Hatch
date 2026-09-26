@@ -17,7 +17,7 @@ import { Icon } from "./Icon";
 import { buttonClasses } from "./ui";
 
 type Load = "loading" | "ready" | "unavailable" | "error";
-type Status = "idle" | "submitting" | "error";
+type Status = "idle" | "submitting" | "error" | "rateLimited";
 type Details = Omit<BookingInput, "slot">;
 
 const EMPTY_DETAILS: Details = { name: "", email: "", phone: "" };
@@ -159,6 +159,10 @@ export function BookingCalendar() {
       }
       if (response.status === 503) {
         setLoad("unavailable");
+        return;
+      }
+      if (response.status === 429) {
+        setStatus("rateLimited");
         return;
       }
       if (response.status === 422 && data.errors) {
@@ -340,9 +344,9 @@ export function BookingCalendar() {
             {visitorZone && visitorZone !== timeZone ? ` (${timeLabel(slot, visitorZone)} your time)` : ""}
           </p>
 
-          {status === "error" ? (
+          {status === "error" || status === "rateLimited" ? (
             <p role="alert" className="mt-5 rounded-2xl bg-danger-soft p-4 font-medium text-danger">
-              {schedule.failure}
+              {status === "rateLimited" ? schedule.rateLimited : schedule.failure}
             </p>
           ) : null}
 
