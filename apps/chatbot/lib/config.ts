@@ -235,6 +235,9 @@ export function validateClientConfig(raw: unknown): ValidationResult {
       return value;
     },
   );
+  if (isDemo && leadDestinationEmails.length > 0) {
+    errors.push("leadDestinationEmails must be empty for demo clients (demo leads go only to WIDGET_DEMO_NOTIFY_TO)");
+  }
   if (!isDemo && leadDestinationEmails.length === 0) {
     errors.push("leadDestinationEmails needs at least one address (only demo clients may leave it empty)");
   }

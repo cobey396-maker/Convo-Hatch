@@ -45,6 +45,8 @@ Requires Node.js 22.6 or newer. Install once from the repository root (npm works
 npm install                      # at the repository root
 cd apps/chatbot
 cp .env.example .env.local       # DATABASE_URL=pglite:./.data/pglite is preset
+                                 # for local email, also set WIDGET_EMAIL_PROVIDER=outbox and
+                                 # WIDGET_DEMO_NOTIFY_TO=you@example.com in .env.local
 npm run widget -- seed           # creates the database and the fictional demo client
 npm run dev                      # chatbot app on http://localhost:3001
 npm run demo:site                # in a second terminal: demo contractor site on http://localhost:4000
@@ -54,7 +56,8 @@ Open http://localhost:4000 and use the chat button in the corner.
 
 - The local database is embedded PostgreSQL ([PGlite](https://pglite.dev)) in `apps/chatbot/.data/`. No database server is needed. Only one process can open it at a time, so **stop the app before running `npm run widget -- …` commands**, or point `DATABASE_URL` at a real PostgreSQL server (for example `docker run -e POSTGRES_PASSWORD=dev -p 5432:5432 postgres:17`, then `DATABASE_URL=postgres://postgres:dev@localhost:5432/postgres`).
 - Without `ANTHROPIC_API_KEY`, the widget says "Live AI is unavailable" and gives automatic answers from the client's approved FAQs, hours, and services, each labeled "Automatic reply". Add a key to `.env.local` and restart for AI answers.
-- Without `RESEND_API_KEY`, leads are still stored. The demo client never sends email in any case.
+- Email: with `WIDGET_EMAIL_PROVIDER=outbox`, each notification is written to `.data/outbox/*.eml` instead of being sent, so you can see exactly what would go out without an email account. With no provider configured, leads are still stored and wait for the retry job.
+- Demo mode: the demo client never emails a contractor. Its leads go only to `WIDGET_DEMO_NOTIFY_TO` (your own test inbox, subject prefixed `[DEMO]`), or are just stored if that's empty.
 
 ## Checks
 
@@ -73,7 +76,8 @@ Needs Playwright (`npm i -D playwright` and `npx playwright install chromium`, o
 
 ```bash
 npm run build
-WIDGET_VISITOR_CONVERSATIONS_PER_HOUR=1000 WIDGET_VISITOR_MESSAGES_PER_10_MIN=1000 WIDGET_VISITOR_LEADS_PER_HOUR=1000 npm start
+WIDGET_EMAIL_PROVIDER=outbox WIDGET_DEMO_NOTIFY_TO=demo-inbox@convohatch.example \
+  WIDGET_VISITOR_CONVERSATIONS_PER_HOUR=1000 WIDGET_VISITOR_MESSAGES_PER_10_MIN=1000 WIDGET_VISITOR_LEADS_PER_HOUR=1000 npm start
 npm run demo:site        # second terminal
 ```
 
@@ -83,7 +87,7 @@ Then:
 npm run test:e2e
 ```
 
-It checks, on the demo contractor site: the launcher is reachable with Tab; Enter opens the chat and moves focus into it; ZIP, repair, and FAQ answers; the callback form's error handling, review step, and submission, entirely by keyboard; Escape closes and returns focus; on an iPhone-sized screen the launcher sits above the site's sticky call bar and the chat is full screen; an unapproved website (`127.0.0.1:4000`) and an unknown client ID get no launcher. Screenshots go to `.e2e-screenshots/`.
+It checks, on the demo contractor site: the launcher is reachable with Tab; Enter opens the chat and moves focus into it; ZIP, repair, and FAQ answers; the callback form's error handling, review step, and submission, entirely by keyboard, and that the `[DEMO]` notification email reached the local outbox addressed only to the demo inbox (set `E2E_OUTBOX_DIR=off` to skip this when using Resend); Escape closes and returns focus; on an iPhone-sized screen the launcher sits above the site's sticky call bar and the chat is full screen; an unapproved website (`127.0.0.1:4000`) and an unknown client ID get no launcher. Screenshots go to `.e2e-screenshots/`.
 
 ## Configure a client
 
@@ -104,7 +108,7 @@ Clients are configured with JSON files and the admin CLI. There is deliberately 
    | `serviceZipCodes` | 5-digit ZIP codes served. The chat and the form check these; the AI is never allowed to decide. |
    | `leadDestinationEmails` | Where service requests are emailed (up to 5). Never shown to visitors or the AI. |
    | `allowedOrigins` | Websites allowed to show the widget, exactly as in the address bar without a path, e.g. `https://www.acme-heating.com` and `https://acme-heating.com`. Include every variant (www and non-www). `http://` is allowed only for `localhost`. |
-   | `isDemo` | `true` stores leads but never emails anyone. |
+   | `isDemo` | `true` marks a demo: its leads never go to a contractor, only to your `WIDGET_DEMO_NOTIFY_TO` test inbox (if set). Demo configs must leave `leadDestinationEmails` empty. |
    | `limits` | Optional per-client daily caps: `dailyConversations`, `dailyAiReplies`, `dailyLeads`, `maxVisitorMessagesPerConversation`. |
 
 3. Validate, then save:
@@ -161,7 +165,7 @@ The server re-validates everything, then stores the lead and its notification re
 - **Duplicates:** each reviewed request carries an idempotency key, so double-clicks and network retries return the original lead. The same contact, ZIP, and service on the same day is also treated as a duplicate. Duplicates don't send a second email.
 - **Email:** sent through Resend right after storing, with an `Idempotency-Key` so a retried send isn't duplicated by the provider. Status `accepted` means Resend accepted the message, not that it reached an inbox.
 - **Failures:** a failed send is recorded (`failed`, attempt count, error code) and retried with backoff (1 minute doubling to 6 hours, 8 attempts, then `gave_up`). Retries run from `npm run widget -- notifications:retry` or the cron endpoint. `leads:list` shows each lead's notification status.
-- **Demo clients** (`isDemo: true`) never send email; this is checked again at send time.
+- **Demo clients** (`isDemo: true`) never email a contractor: their config can't list destinations, and at send time their leads are addressed only to `WIDGET_DEMO_NOTIFY_TO` with a `[DEMO]` subject, or not emailed at all when it's empty.
 - Out-of-area ZIP codes are accepted but flagged in the email, and the visitor is warned on the review screen.
 
 ## Security and abuse controls

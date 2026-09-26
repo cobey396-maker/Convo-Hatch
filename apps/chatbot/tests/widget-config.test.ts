@@ -20,6 +20,12 @@ test("the example template is structurally valid", () => {
   assert.ok(result.ok, result.ok ? "" : result.errors.join("; "));
 });
 
+test("demo clients can't list contractor destinations", () => {
+  const result = validateClientConfig({ ...demo, leadDestinationEmails: ["owner@real-contractor.example"] });
+  assert.ok(!result.ok);
+  assert.match(result.errors.join("\n"), /must be empty for demo clients/);
+});
+
 test("real clients need a lead destination and at least one allowed origin", () => {
   const result = validateClientConfig({ ...demo, isDemo: false, leadDestinationEmails: [], allowedOrigins: [] });
   assert.ok(!result.ok);

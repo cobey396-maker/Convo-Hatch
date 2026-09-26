@@ -3,7 +3,7 @@
 
 import { claudeResponder, isWidgetAiConfigured, type AiResponder } from "./ai.ts";
 import { getDb, type Db } from "./db.ts";
-import { resendSender, type EmailSender } from "./notify.ts";
+import { emailSender, type EmailSender } from "./notify.ts";
 
 export interface WidgetDeps {
   db: Db;
@@ -18,7 +18,7 @@ export async function defaultDeps(): Promise<WidgetDeps> {
   return {
     db: await getDb(),
     ai: isWidgetAiConfigured() ? claudeResponder : null,
-    email: resendSender(),
+    email: emailSender(),
     now: () => new Date(),
   };
 }

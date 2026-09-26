@@ -5,7 +5,8 @@
 //   3. Playwright available: `npm i -D playwright` or set PLAYWRIGHT_MODULE to its path.
 // Screenshots go to E2E_SCREENSHOTS (default ./.e2e-screenshots).
 
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import assert from "node:assert/strict";
 
 const APP = process.env.WIDGET_BASE_URL || "http://localhost:3001";
@@ -13,6 +14,9 @@ const SITE = process.env.DEMO_SITE_URL || "http://localhost:4000";
 // Same demo server, different origin: not in the demo client's allowedOrigins.
 const UNAPPROVED_SITE = process.env.UNAPPROVED_SITE_URL || "http://127.0.0.1:4000";
 const SHOTS = process.env.E2E_SCREENSHOTS || ".e2e-screenshots";
+// When the app runs with WIDGET_EMAIL_PROVIDER=outbox and WIDGET_DEMO_NOTIFY_TO set, the test also
+// checks that the demo notification email was produced (skipped when E2E_OUTBOX_DIR is "off").
+const OUTBOX = process.env.E2E_OUTBOX_DIR || path.join(".data", "outbox");
 const { chromium, devices } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 
 await mkdir(SHOTS, { recursive: true });
@@ -123,6 +127,16 @@ await step("desktop: keyboard-only chat and callback request", async () => {
   const reference = await frame.getByText(/CH-[A-Z2-9]{8}/).first().textContent();
   assert.match(reference, /CH-[A-Z2-9]{8}/);
   await frame.getByText("not sent to any contractor", { exact: false }).waitFor();
+  if (OUTBOX !== "off") {
+    const code = reference.match(/CH-[A-Z2-9]{8}/)[0];
+    const files = (await readdir(OUTBOX).catch(() => [])).filter((file) => file.endsWith(".eml"));
+    const emails = await Promise.all(files.map((file) => readFile(path.join(OUTBOX, file), "utf8")));
+    const email = emails.find((text) => text.includes(code));
+    assert.ok(email, `notification email for ${code} in ${OUTBOX}`);
+    assert.match(email, /^To: demo-inbox@convohatch\.example$/m);
+    assert.match(email, /^Subject: \[DEMO\] Callback request: Furnace repair, ZIP 54321/m);
+    assert.match(email, /not a confirmed appointment/);
+  }
   await page.screenshot({ path: `${SHOTS}/desktop-4-received.png` });
 
   // Escape closes the panel and returns focus to the launcher.

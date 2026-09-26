@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { startConversation } from "../lib/conversations.ts";
 import { normalizeLead, OTHER_SERVICE, validateLead } from "../lib/lead-fields.ts";
 import { submitLead } from "../lib/leads.ts";
-import { buildLeadEmail, maxNotificationAttempts, retryDueNotifications } from "../lib/notify.ts";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { buildLeadEmail, emailSender, maxNotificationAttempts, outboxSender, retryDueNotifications } from "../lib/notify.ts";
 import { idempotencyKey, setup, validLead, type Fixture } from "./widget-fixtures.ts";
 
 let f: Fixture;
@@ -235,6 +238,38 @@ test("demo clients store leads but never send notifications", async () => {
   assert.equal(f.email.sent.length, 0);
 });
 
+test("with a demo inbox configured, demo leads go only to that inbox, marked as a demo", async () => {
+  process.env.WIDGET_DEMO_NOTIFY_TO = "operator@convohatch.example, not-an-email";
+  try {
+    f.email.sent.length = 0;
+    const result = await submit(validLead({ email: "demo-inbox@example.com" }), { publicId: "demo-client" });
+    assert.ok(result.ok);
+    assert.equal(result.notification, "accepted");
+    assert.equal(f.email.sent.length, 1);
+    const [email] = f.email.sent;
+    assert.deepEqual(email.to, ["operator@convohatch.example"]);
+    assert.match(email.subject, /^\[DEMO\] /);
+    assert.match(email.text, /^DEMO: /);
+    assert.match(email.text, /not to any contractor/);
+    assert.equal(email.replyTo, undefined, "no reply-to a demo visitor");
+  } finally {
+    delete process.env.WIDGET_DEMO_NOTIFY_TO;
+  }
+});
+
+test("a demo inbox never redirects a real client's leads", async () => {
+  process.env.WIDGET_DEMO_NOTIFY_TO = "operator@convohatch.example";
+  try {
+    f.email.sent.length = 0;
+    const result = await submit(validLead({ email: "real-client@example.com" }));
+    assert.ok(result.ok);
+    assert.deepEqual(f.email.sent[0].to, ["office@alpha.example"]);
+    assert.doesNotMatch(f.email.sent[0].subject, /DEMO/);
+  } finally {
+    delete process.env.WIDGET_DEMO_NOTIFY_TO;
+  }
+});
+
 test("a client switched to demo mode after a lead was stored is not emailed", async () => {
   f.email.sent.length = 0;
   const result = await submit(validLead({ email: "switch@example.com" }), { publicId: "bravo-cooling", deps: { email: null } });
@@ -269,4 +304,34 @@ test("the notification email uses single-line headers", () => {
   );
   assert.doesNotMatch(email.subject, /[\r\n]/);
   assert.equal(email.replyTo, undefined);
+});
+
+test("the local outbox provider writes one file per notification and is refused on Vercel", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "outbox-"));
+  try {
+    const send = outboxSender(dir);
+    const email = { to: ["office@alpha.example"], subject: "Callback request", text: "Body", idempotencyKey: "convohatch-lead-n1" };
+    const first = await send(email);
+    const second = await send(email);
+    assert.deepEqual(first, { ok: true, providerId: "outbox:convohatch-lead-n1.eml" });
+    assert.deepEqual(second, first);
+    assert.deepEqual(await readdir(dir), ["convohatch-lead-n1.eml"], "a repeated send doesn't duplicate");
+    assert.match(await readFile(path.join(dir, "convohatch-lead-n1.eml"), "utf8"), /^To: office@alpha\.example\nSubject: Callback request/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+
+  const saved = { provider: process.env.WIDGET_EMAIL_PROVIDER, vercel: process.env.VERCEL, key: process.env.RESEND_API_KEY };
+  process.env.WIDGET_EMAIL_PROVIDER = "outbox";
+  assert.ok(emailSender());
+  process.env.VERCEL = "1";
+  assert.equal(emailSender(), null);
+  delete process.env.VERCEL;
+  process.env.WIDGET_EMAIL_PROVIDER = "resend";
+  delete process.env.RESEND_API_KEY;
+  assert.equal(emailSender(), null, "Resend without credentials is not configured");
+  for (const [name, value] of [["WIDGET_EMAIL_PROVIDER", saved.provider], ["VERCEL", saved.vercel], ["RESEND_API_KEY", saved.key]] as const) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
 });

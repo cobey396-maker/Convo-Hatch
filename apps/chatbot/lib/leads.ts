@@ -16,7 +16,7 @@ import {
   type LeadErrors,
 } from "./lead-fields.ts";
 import { WINDOWS, clientLimit, consume, widgetLimits } from "./limits.ts";
-import { deliverNotification, type DeliveryOutcome } from "./notify.ts";
+import { deliverNotification, demoNotifyTo, type DeliveryOutcome } from "./notify.ts";
 
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9-]{16,64}$/;
 const REFERENCE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -132,7 +132,8 @@ export async function submitLead(
           lead.preferredTime,
           lead.timeZone,
           now,
-          client.isDemo ? "suppressed_demo" : "pending",
+          // Demo leads are emailed only when a demo inbox is configured, and only to that inbox.
+          client.isDemo && demoNotifyTo().length === 0 ? "suppressed_demo" : "pending",
         ],
       );
       inserted = rows[0];
@@ -156,7 +157,8 @@ export async function submitLead(
     return { ok: true, reference: existing[0].reference, duplicate: true, inServiceArea: existing[0].in_service_area, notification: "existing" };
   }
 
-  const notification = client.isDemo ? "suppressed_demo" : await deliverNotification(deps, inserted.notification_id);
+  const notification =
+    client.isDemo && demoNotifyTo().length === 0 ? "suppressed_demo" : await deliverNotification(deps, inserted.notification_id);
   return { ok: true, reference: inserted.reference, duplicate: false, inServiceArea, notification };
 }
 

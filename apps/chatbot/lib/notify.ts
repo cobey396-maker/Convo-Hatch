@@ -3,6 +3,8 @@
 // Status meanings are deliberately modest: "accepted" means the email provider accepted the
 // message for sending. It is not proof the email reached an inbox.
 
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { timeZoneLabel } from "./config.ts";
 import type { WidgetDeps } from "./deps.ts";
 
@@ -56,6 +58,56 @@ export function resendSender(): EmailSender | null {
   };
 }
 
+/**
+ * Development only: "sends" each email by writing it to a file in WIDGET_OUTBOX_DIR
+ * (default .data/outbox), so the whole flow can be seen locally without an email account.
+ * Enabled with WIDGET_EMAIL_PROVIDER=outbox. Refused on Vercel, where nothing would read it.
+ */
+export function outboxSender(dir = env("WIDGET_OUTBOX_DIR") || path.join(".data", "outbox")): EmailSender {
+  return async (email) => {
+    // Named by the idempotency key, so a repeated send overwrites instead of duplicating.
+    const file = path.resolve(dir, `${email.idempotencyKey}.eml`);
+    const message = [
+      `To: ${email.to.join(", ")}`,
+      ...(email.replyTo ? [`Reply-To: ${email.replyTo}`] : []),
+      `Subject: ${email.subject}`,
+      "Content-Type: text/plain; charset=utf-8",
+      "",
+      email.text,
+      "",
+    ].join("\n");
+    try {
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, message, "utf8");
+    } catch {
+      return { ok: false, reason: "outbox_write_failed" };
+    }
+    return { ok: true, providerId: `outbox:${path.basename(file)}` };
+  };
+}
+
+/** The configured email provider, or null when email isn't set up. */
+export function emailSender(): EmailSender | null {
+  const provider = env("WIDGET_EMAIL_PROVIDER").toLowerCase() || "resend";
+  if (provider === "outbox") return process.env.VERCEL ? null : outboxSender();
+  if (provider === "resend") return resendSender();
+  return null;
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/**
+ * Where demo-client leads are emailed: your own test inbox(es) from WIDGET_DEMO_NOTIFY_TO, never
+ * a contractor. Empty means demo leads are stored but not emailed.
+ */
+export function demoNotifyTo(): string[] {
+  return env("WIDGET_DEMO_NOTIFY_TO")
+    .split(",")
+    .map((address) => address.trim().toLowerCase())
+    .filter((address) => EMAIL_PATTERN.test(address))
+    .slice(0, 5);
+}
+
 export function maxNotificationAttempts(): number {
   const value = Number(process.env.WIDGET_NOTIFY_MAX_ATTEMPTS);
   return Number.isInteger(value) && value > 0 ? value : 8;
@@ -88,13 +140,24 @@ interface LeadForEmail {
   lead_destination_emails: string[];
 }
 
-export function buildLeadEmail(lead: LeadForEmail, notificationId: string): OutgoingEmail {
+export function buildLeadEmail(
+  lead: LeadForEmail,
+  notificationId: string,
+  demoRecipients: string[] = [],
+): OutgoingEmail {
   const submitted = new Intl.DateTimeFormat("en-US", {
     timeZone: lead.business_time_zone,
     dateStyle: "full",
     timeStyle: "short",
   }).format(new Date(lead.created_at));
   const text = [
+    ...(lead.is_demo
+      ? [
+          "DEMO: this request came from the demo widget for a fictional business. It was sent to the",
+          "ConvoHatch demo inbox (WIDGET_DEMO_NOTIFY_TO), not to any contractor. Details were typed by a demo visitor.",
+          "",
+        ]
+      : []),
     `New callback request from the ${lead.business_name} website chat`,
     `Reference: ${lead.reference}`,
     "",
@@ -114,9 +177,10 @@ export function buildLeadEmail(lead: LeadForEmail, notificationId: string): Outg
     "Sent by ConvoHatch.",
   ].join("\n");
   return {
-    to: lead.lead_destination_emails,
-    replyTo: lead.email ?? undefined,
-    subject: singleLine(`Callback request: ${lead.service}, ZIP ${lead.zip} (${lead.reference})`),
+    // Demo leads go only to the operator's demo inbox; the client's own list is never used.
+    to: lead.is_demo ? demoRecipients : lead.lead_destination_emails,
+    replyTo: lead.is_demo ? undefined : (lead.email ?? undefined),
+    subject: singleLine(`${lead.is_demo ? "[DEMO] " : ""}Callback request: ${lead.service}, ZIP ${lead.zip} (${lead.reference})`),
     text,
     idempotencyKey: `convohatch-lead-${notificationId}`,
   };
@@ -163,8 +227,9 @@ export async function deliverNotification(deps: WidgetDeps, notificationId: stri
   );
   const lead = leads[0];
 
-  // Checked again at send time, in case a client was switched to demo mode later.
-  if (!lead || lead.is_demo) {
+  // Demo status is checked at send time, so a client switched to demo mode later is covered too.
+  const demoRecipients = lead?.is_demo ? demoNotifyTo() : [];
+  if (!lead || (lead.is_demo && demoRecipients.length === 0)) {
     await deps.db.query(
       `UPDATE lead_notifications SET status = 'suppressed_demo', locked_until = NULL, updated_at = $2 WHERE id = $1`,
       [notificationId, now],
@@ -172,10 +237,11 @@ export async function deliverNotification(deps: WidgetDeps, notificationId: stri
     return "suppressed_demo";
   }
 
+  const email = buildLeadEmail(lead, notificationId, demoRecipients);
   const result: SendResult =
-    lead.lead_destination_emails.length === 0
+    email.to.length === 0
       ? { ok: false, reason: "no_destination" }
-      : await deps.email(buildLeadEmail(lead, notificationId)).catch(() => ({ ok: false as const, reason: "sender_error" }));
+      : await deps.email(email).catch(() => ({ ok: false as const, reason: "sender_error" }));
 
   if (result.ok) {
     await deps.db.query(

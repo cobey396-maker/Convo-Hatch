@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { getClient, listClients, setClientActive, upsertClient } from "../lib/clients.ts";
 import { validateClientConfig } from "../lib/config.ts";
 import { DatabaseNotConfiguredError, migrate, openDb, type Db } from "../lib/db.ts";
-import { resendSender, retryDueNotifications } from "../lib/notify.ts";
+import { emailSender, retryDueNotifications } from "../lib/notify.ts";
 import { purgeExpired, retentionSettings } from "../lib/retention.ts";
 import { installationSnippet, widgetBaseUrl } from "../lib/snippet.ts";
 
@@ -87,7 +87,7 @@ function loadEnvLocal() {
 async function main() {
   loadEnvLocal();
   const [command, ...args] = process.argv.slice(2);
-  const deps = (db: Db) => ({ db, ai: null, email: resendSender(), now: () => new Date() });
+  const deps = (db: Db) => ({ db, ai: null, email: emailSender(), now: () => new Date() });
 
   switch (command) {
     case "migrate":
@@ -103,7 +103,7 @@ async function main() {
         const config = await loadConfigFile("db/clients/demo-cedar-hollow.json");
         const client = await upsertClient(db, config);
         console.log(`Demo client ready: ${client.publicId} (${client.businessName})`);
-        console.log("It's marked as a demo, so service requests are stored but never emailed.");
+        console.log("It's a demo: requests are never emailed to a contractor. Set WIDGET_DEMO_NOTIFY_TO to email them to your own test inbox.");
         console.log(`Allowed websites: ${client.allowedOrigins.join(", ")}`);
         console.log(`\nInstallation snippet:\n${snippetHelp(client.publicId)}`);
       });
@@ -121,7 +121,7 @@ async function main() {
         const existing = await getClient(db, config.publicId);
         const client = await upsertClient(db, config);
         console.log(`${existing ? "Updated" : "Created"} ${client.publicId} (${client.businessName}).`);
-        if (client.isDemo) console.log("Demo client: service requests are stored but never emailed.");
+        if (client.isDemo) console.log("Demo client: requests go only to WIDGET_DEMO_NOTIFY_TO (if set), never to a contractor.");
         console.log(`\nInstallation snippet:\n${snippetHelp(client.publicId)}`);
       });
       return;
@@ -142,8 +142,8 @@ async function main() {
         const client = await getClient(db, args[0] ?? "");
         if (!client) fail(`No client with public ID "${args[0]}".`);
         console.log(JSON.stringify({ ...client, id: undefined }, null, 2));
-        if (!client.isDemo && !resendSender()) {
-          console.log("\nWarning: RESEND_API_KEY and LEAD_NOTIFY_FROM_EMAIL aren't set here, so lead emails can't be sent.");
+        if (!client.isDemo && !emailSender()) {
+          console.log("\nWarning: no email provider is configured here (RESEND_API_KEY + LEAD_NOTIFY_FROM_EMAIL, or WIDGET_EMAIL_PROVIDER=outbox), so lead emails can't be sent.");
         }
       });
       return;
@@ -193,7 +193,7 @@ async function main() {
       await withDb(async (db) => {
         const summary = await retryDueNotifications(deps(db), 100);
         console.log(JSON.stringify(summary));
-        if (summary.not_configured) console.log("Email isn't configured: set RESEND_API_KEY and LEAD_NOTIFY_FROM_EMAIL.");
+        if (summary.not_configured) console.log("Email isn't configured: set RESEND_API_KEY and LEAD_NOTIFY_FROM_EMAIL (or WIDGET_EMAIL_PROVIDER=outbox locally).");
       });
       return;
 
