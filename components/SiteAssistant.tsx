@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import {
   ASSISTANT_GREETING,
@@ -19,8 +20,8 @@ const HIDDEN_TEXT = "Message hidden — please don’t share personal details he
 const HISTORY_LIMIT = 16;
 
 const ACTIONS: Record<AssistantAction, { label: string; href: string }> = {
-  "request-demo": { label: "Go to the demo request form", href: "#request-demo" },
-  "try-demo": { label: "Try the sample chatbot", href: "#demo" },
+  "request-demo": { label: "Go to the demo request form", href: "/#request-demo" },
+  "try-demo": { label: "Try the sample chatbot", href: "/#demo" },
 };
 
 function greeting(): Message[] {
@@ -274,9 +275,9 @@ export function SiteAssistant() {
             </form>
             <p id="site-assistant-hint" className="mt-2 text-sm text-petrol-soft">
               Please don’t share personal details. To reach us, use the{" "}
-              <a href="#request-demo" onClick={() => close(false)} className="font-semibold text-ocean underline">
+              <Link href="/#request-demo" onClick={() => close(false)} className="font-semibold text-ocean underline">
                 demo request form
-              </a>
+              </Link>
               .
             </p>
           </div>

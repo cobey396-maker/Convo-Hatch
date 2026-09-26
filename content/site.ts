@@ -10,20 +10,21 @@ export const site = {
 
 export const nav = {
   links: [
-    { label: "Benefits", href: "#benefits" },
-    { label: "How It Works", href: "#how-it-works" },
-    { label: "Demo", href: "#demo" },
-    { label: "FAQ", href: "#faq" },
+    { label: "Benefits", href: "/#benefits" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "Demo", href: "/#demo" },
+    { label: "FAQ", href: "/#faq" },
+    { label: "Schedule a Call", href: "/schedule" },
   ],
-  cta: { label: "Request a Demo", href: "#request-demo" },
+  cta: { label: "Request a Demo", href: "/#request-demo" },
 };
 
 export const hero = {
   eyebrow: "Custom website chatbots for local service businesses",
   headline: "Your next customer shouldn’t have to wait.",
   body: "ConvoHatch adds a custom AI chatbot to your website to answer common questions, capture service requests, and help visitors take the next step—even after hours.",
-  primaryCta: { label: "Request a Demo", href: "#request-demo" },
-  secondaryCta: { label: "Try the Chatbot", href: "#demo" },
+  primaryCta: { label: "Request a Demo", href: "/#request-demo" },
+  secondaryCta: { label: "Try the Chatbot", href: "/#demo" },
   note: "Built for HVAC contractors first, and for plumbing, electrical, roofing, and other trades.",
   preview: {
     label: "Example conversation",
@@ -210,11 +211,27 @@ export const demoRequest = {
 
 export const footer = {
   sections: [
-    { label: "Benefits", href: "#benefits" },
-    { label: "How It Works", href: "#how-it-works" },
-    { label: "Demo", href: "#demo" },
-    { label: "Industries", href: "#industries" },
-    { label: "FAQ", href: "#faq" },
-    { label: "Request a Demo", href: "#request-demo" },
+    { label: "Benefits", href: "/#benefits" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "Demo", href: "/#demo" },
+    { label: "Industries", href: "/#industries" },
+    { label: "FAQ", href: "/#faq" },
+    { label: "Request a Demo", href: "/#request-demo" },
+    { label: "Schedule a Call", href: "/schedule" },
   ],
+} as const;
+
+export const schedule = {
+  // Time zone your hours are in. Use an IANA name, e.g. "America/Chicago" or "America/Los_Angeles".
+  timeZone: "America/New_York",
+  eyebrow: "Schedule a call",
+  heading: "Pick a time that works for you.",
+  intro:
+    "Book a free 30-minute Zoom call. Choose a day and time, add your details, and we’ll send you a Zoom link before the call.",
+  hoursNote: "Available weekdays 5–9 PM and Saturdays 9 AM–2 PM.",
+  unavailable:
+    "Online scheduling isn’t available right now. Please use the demo request form instead, and we’ll follow up by email.",
+  success: "You’re booked. We’ll send a Zoom link to your email before the call.",
+  taken: "Sorry, someone just booked that time. Please pick another.",
+  failure: "Sorry, we couldn’t book that time just now. Please try again in a few minutes.",
 } as const;

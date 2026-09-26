@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { nav } from "@/content/site";
 import { Logo } from "./Logo";
@@ -51,9 +52,9 @@ export function SiteHeader() {
         Skip to content
       </a>
       <Container className="flex h-18 items-center justify-between gap-4">
-        <a href="#top" className="rounded-md" aria-label="ConvoHatch, back to top">
+        <Link href="/#top" className="rounded-md" aria-label="ConvoHatch, back to top">
           <Logo />
-        </a>
+        </Link>
 
         <nav aria-label="Main" className="hidden md:block">
           <ul className="flex items-center gap-1 lg:gap-2">
