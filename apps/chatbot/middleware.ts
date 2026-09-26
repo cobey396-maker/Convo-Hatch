@@ -11,21 +11,28 @@ async function allowedOrigins(request: NextRequest, publicId: string): Promise<s
   const cached = cache.get(publicId);
   if (cached && cached.expires > Date.now()) return cached.origins;
   let origins: string[] = [];
+  // Only definite answers are cached. A timeout or server error blocks framing for this request
+  // only (fail closed) and is retried on the next one, so a cold start can't hide the widget
+  // for the whole cache period.
+  let definite = false;
   try {
     const url = new URL("/api/widget/frame-policy", request.nextUrl.origin);
     url.searchParams.set("client", publicId);
     const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(3_000) });
-    if (response.ok) {
+    if (response.ok || response.status === 404) {
       const data = (await response.json()) as { origins?: unknown };
       origins = Array.isArray(data.origins) ? data.origins.filter((item): item is string => typeof item === "string") : [];
+      definite = true;
     }
   } catch {
     // Fail closed: no origins means the widget can't be framed.
   }
   // Only valid origin strings reach the header.
   origins = origins.filter((origin) => /^https?:\/\/[a-z0-9.-]+(:\d{1,5})?$/i.test(origin));
-  if (cache.size > 1000) cache.clear();
-  cache.set(publicId, { origins, expires: Date.now() + CACHE_MS });
+  if (definite) {
+    if (cache.size > 1000) cache.clear();
+    cache.set(publicId, { origins, expires: Date.now() + CACHE_MS });
+  }
   return origins;
 }
 
