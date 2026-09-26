@@ -1,0 +1,64 @@
+{
+  "publicId": "demo-cedar-hollow",
+  "businessName": "Cedar Hollow Heating & Air (demo)",
+  "isDemo": true,
+  "active": true,
+  "profile": {
+    "branding": {
+      "primaryColor": "#1f5f5b",
+      "assistantName": "Cedar Hollow assistant",
+      "greeting": "Hi! I’m the AI assistant for Cedar Hollow Heating & Air, a fictional demo business. I can answer questions about our services and hours, check whether we serve your ZIP code, and take a callback request.",
+      "launcherLabel": "Chat with us"
+    },
+    "timeZone": "America/Chicago",
+    "hours": [
+      { "day": "monday", "open": "07:30", "close": "18:00" },
+      { "day": "tuesday", "open": "07:30", "close": "18:00" },
+      { "day": "wednesday", "open": "07:30", "close": "18:00" },
+      { "day": "thursday", "open": "07:30", "close": "18:00" },
+      { "day": "friday", "open": "07:30", "close": "18:00" },
+      { "day": "saturday", "open": "09:00", "close": "13:00" }
+    ],
+    "hoursNote": "Callback requests sent outside office hours are answered the next business day.",
+    "services": [
+      { "name": "AC repair", "description": "Diagnosis and repair of central air conditioners." },
+      { "name": "Furnace repair", "description": "Diagnosis and repair of gas and electric furnaces." },
+      { "name": "Heat pump service", "description": "Repair and seasonal service for heat pumps." },
+      { "name": "Seasonal maintenance", "description": "Spring cooling and fall heating tune-ups." },
+      { "name": "New system estimate", "description": "In-home visit to discuss replacing a heating or cooling system." },
+      { "name": "Thermostat installation", "description": "Installing and setting up programmable and smart thermostats." }
+    ],
+    "faqs": [
+      {
+        "question": "Do you offer free estimates?",
+        "answer": "Estimates for new heating and cooling systems are free. Repair visits include a diagnostic fee, and the office explains it before booking."
+      },
+      {
+        "question": "Do you work on all brands?",
+        "answer": "Yes. Our technicians service most major brands of furnaces, air conditioners, and heat pumps."
+      },
+      {
+        "question": "Are your technicians licensed and insured?",
+        "answer": "Yes. All Cedar Hollow technicians are licensed and insured."
+      },
+      {
+        "question": "Do you offer maintenance plans?",
+        "answer": "Yes. Our Comfort Club plan includes two seasonal tune-ups a year. The office can share details on a callback."
+      },
+      {
+        "question": "What payment methods do you accept?",
+        "answer": "We accept cash, checks, and major credit cards."
+      }
+    ],
+    "contact": {
+      "phone": "(555) 010-0199",
+      "email": "office@cedarhollow.example",
+      "address": "100 Sample Street, Springfield (fictional)"
+    },
+    "emergencyMessage": "If you smell gas, a carbon monoxide alarm is sounding, or you see smoke or fire, leave the building now and call 911 from outside. Then call your gas utility."
+  },
+  "serviceZipCodes": ["54321", "54322", "54323", "54325", "54330"],
+  "leadDestinationEmails": [],
+  "allowedOrigins": ["http://localhost:4000"],
+  "limits": {}
+}

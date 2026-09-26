@@ -1,0 +1,47 @@
+{
+  "publicId": "acme-heating",
+  "businessName": "REPLACE: Contractor's business name",
+  "isDemo": false,
+  "active": true,
+  "profile": {
+    "branding": {
+      "primaryColor": "#8a2c0d",
+      "assistantName": "REPLACE: e.g. Acme Heating assistant",
+      "greeting": "REPLACE: Hi! I'm the AI assistant for <business>. I can answer questions about our services and hours, check whether we serve your ZIP code, and take a callback request.",
+      "launcherLabel": "Chat with us"
+    },
+    "timeZone": "America/New_York",
+    "hours": [
+      { "day": "monday", "open": "08:00", "close": "17:00" },
+      { "day": "tuesday", "open": "08:00", "close": "17:00" },
+      { "day": "wednesday", "open": "08:00", "close": "17:00" },
+      { "day": "thursday", "open": "08:00", "close": "17:00" },
+      { "day": "friday", "open": "08:00", "close": "17:00" }
+    ],
+    "hoursNote": "REPLACE or delete: anything the contractor approved about after-hours requests.",
+    "services": [
+      { "name": "AC repair", "description": "REPLACE with the contractor's approved wording." },
+      { "name": "Furnace repair" }
+    ],
+    "faqs": [
+      {
+        "question": "REPLACE: A question the contractor approved",
+        "answer": "REPLACE: The contractor's approved answer, word for word."
+      }
+    ],
+    "contact": {
+      "phone": "REPLACE: office phone",
+      "email": "office@replace-me.example",
+      "website": "https://www.replace-me.example"
+    },
+    "emergencyMessage": "REPLACE or delete: the contractor's approved wording for gas smells, CO alarms, smoke, or fire."
+  },
+  "serviceZipCodes": ["00000"],
+  "leadDestinationEmails": ["leads@replace-me.example"],
+  "allowedOrigins": ["https://www.replace-me.example", "https://replace-me.example"],
+  "limits": {
+    "dailyConversations": 300,
+    "dailyAiReplies": 300,
+    "dailyLeads": 50
+  }
+}
