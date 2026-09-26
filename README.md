@@ -42,6 +42,19 @@ Notes:
 - The route validates input on the server too, uses a hidden spam-trap field, checks the request origin, and limits body size. Consider adding rate limiting at your host (for example, Vercel firewall rules) before heavy traffic.
 - Logs never include submitted personal information. Failed deliveries log only the provider and HTTP status.
 
+## Schedule a Call page
+
+`/schedule` shows a calendar where visitors pick a 30-minute Zoom call, then enter their name, email, and phone number. Links to it are in the header, footer, and demo request section.
+
+- **Hours:** weekdays 5–9 PM and Saturdays 9 AM–2 PM, no Sundays, in 30-minute slots. Visitors can book up to 3 weeks ahead with at least 2 hours' notice. Change these in `lib/booking.ts` (`WEEKLY_HOURS`, `BOOKING_WINDOW_DAYS`, `MIN_NOTICE_MINUTES`), and update `schedule.hoursNote` in `content/site.ts` to match.
+- **Time zone:** set `schedule.timeZone` in `content/site.ts` (default `America/New_York`). Times are shown in that zone, and the form also shows the visitor's local time when it differs.
+- **Getting notified:** booking stays disabled until at least one of these is set in Vercel's Environment Variables (see `.env.example`). Every configured option is used.
+  - **Text to your phone (Twilio):** `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `BOOKING_NOTIFY_PHONE`. US numbers need toll-free verification or A2P 10DLC registration in Twilio first, which can take a few days.
+  - **Free push notification (ntfy):** install the ntfy app, subscribe to a long, hard-to-guess topic name, and set `NTFY_TOPIC` to it. Works right away.
+  - **Email / webhook:** the Resend and webhook settings from the demo form also receive bookings. With Resend set up, the visitor also gets a confirmation email.
+- **Double booking:** add Upstash Redis from the Vercel Marketplace (it sets `KV_REST_API_URL` and `KV_REST_API_TOKEN`) so booked times disappear from the calendar. Without it, every time stays open, and you sort out any clash when you send the Zoom link.
+- The notification includes the time, name, email, and phone number. Reply to the visitor with your Zoom link.
+
 ## Site assistant (chat button)
 
 Every page shows a "Questions? Ask us" button that opens the ConvoHatch assistant. It answers questions about ConvoHatch and points visitors to the demo request form.
@@ -64,6 +77,7 @@ Brand colors are defined as Tailwind theme tokens in `app/globals.css` (`petrol`
 ## Before launch
 
 - Configure demo-request delivery (above).
+- Set your time zone and at least one booking notification for the Schedule a Call page (above).
 - Optionally add `ANTHROPIC_API_KEY` to turn on AI replies in the site assistant, then set a spending limit in the Anthropic Console.
 - Add a privacy policy if your jurisdiction or delivery setup requires one, and link it from the footer and form. No legal pages are included, and the site makes no legal claims.
 - Optionally set `metadataBase` and an Open Graph image in `app/layout.tsx` once the production domain is known.

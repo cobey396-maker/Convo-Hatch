@@ -26,6 +26,13 @@ export function DemoRequest() {
               </li>
             ))}
           </ul>
+          <p className="mt-8 text-white/85">
+            Prefer to talk it through?{" "}
+            <a href="/schedule" className="font-semibold text-sky underline underline-offset-4 hover:text-white">
+              Schedule a free 30-minute call
+            </a>
+            .
+          </p>
         </div>
         {/* The form sits on a white card, so reset focus rings to the light-background style. */}
         <div className="[&_:focus-visible]:outline-ocean">

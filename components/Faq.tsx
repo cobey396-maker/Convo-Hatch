@@ -1,13 +1,19 @@
 import { faq } from "@/content/site";
 import { Container, SectionHeading } from "./ui";
 
-export function Faq() {
+interface FaqContent {
+  eyebrow: string;
+  heading: string;
+  items: readonly { question: string; answer: string }[];
+}
+
+export function Faq({ id = "faq", content = faq }: { id?: string; content?: FaqContent }) {
   return (
-    <section id="faq" aria-labelledby="faq-heading" className="bg-white py-20 sm:py-24">
+    <section id={id} aria-labelledby={`${id}-heading`} className="bg-white py-20 sm:py-24">
       <Container className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-        <SectionHeading id="faq-heading" eyebrow={faq.eyebrow} heading={faq.heading} />
+        <SectionHeading id={`${id}-heading`} eyebrow={content.eyebrow} heading={content.heading} />
         <div className="divide-y divide-line border-y border-line">
-          {faq.items.map((item) => (
+          {content.items.map((item) => (
             <details key={item.question} className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-6 rounded-lg py-5 font-display text-lg font-semibold text-petrol [&::-webkit-details-marker]:hidden">
                 {item.question}

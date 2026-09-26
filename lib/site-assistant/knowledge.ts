@@ -1,7 +1,7 @@
 // Approved facts for the ConvoHatch site assistant, built from the site copy so there is one source of truth.
 // Both the scripted replies and the AI system prompt use these.
 
-import { benefits, demo, demoRequest, faq, hero, howItWorks, industries, site } from "../../content/site.ts";
+import { benefits, demo, demoRequest, faq, hero, howItWorks, industries, pricing, site } from "../../content/site.ts";
 
 export type FaqTopic =
   | "existingWebsite"
@@ -62,8 +62,22 @@ export function buildFactSheet(): string {
     "",
     `Sample chatbot on this page: ${demo.intro}`,
     `Requesting a demo: ${summaries.requestDemo}`,
+    "Scheduling a call: visitors can book a free 30-minute Zoom call with ConvoHatch on the Schedule a Call page (/schedule).",
     "Scope: the chatbot answers visitors on the business's website. It does not answer phone calls, texts, or voicemail.",
-    "The website lists no email address, phone number, street address, booking link, prices, packages, client names, testimonials, or performance statistics.",
+    "",
+    "Pricing (published on the Pricing page, /pricing):",
+    ...pricing.plans.map((plan) =>
+      [
+        `- ${plan.name}: ${plan.priceLabel}${plan.setup ? `, plus a ${plan.setup}` : ""}. ${plan.description}`,
+        `  ${plan.listHeading}: ${plan.items.join("; ")}.`,
+        `  ${plan.note}`,
+      ].join("\n"),
+    ),
+    ...pricing.covers.items.map((item) => `- ${item.body}`),
+    ...pricing.faq.items.map((item) => `Q: ${item.question}\nA: ${item.answer}`),
+    "No discounts, free trials, usage limits, overage prices, contract lengths, cancellation terms, refund policies, or support response times are published.",
+    "",
+    "The website lists no email address, phone number, street address, client names, testimonials, or performance statistics.",
   ];
   return lines.join("\n");
 }

@@ -10,20 +10,22 @@ export const site = {
 
 export const nav = {
   links: [
-    { label: "Benefits", href: "#benefits" },
-    { label: "How It Works", href: "#how-it-works" },
-    { label: "Demo", href: "#demo" },
-    { label: "FAQ", href: "#faq" },
+    { label: "Benefits", href: "/#benefits" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "Demo", href: "/#demo" },
+    { label: "FAQ", href: "/#faq" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "Schedule a Call", href: "/schedule" },
   ],
-  cta: { label: "Request a Demo", href: "#request-demo" },
+  cta: { label: "Request a Demo", href: "/#request-demo" },
 };
 
 export const hero = {
   eyebrow: "Custom website chatbots for local service businesses",
   headline: "Your next customer shouldn’t have to wait.",
   body: "ConvoHatch adds a custom AI chatbot to your website to answer common questions, capture service requests, and help visitors take the next step—even after hours.",
-  primaryCta: { label: "Request a Demo", href: "#request-demo" },
-  secondaryCta: { label: "Try the Chatbot", href: "#demo" },
+  primaryCta: { label: "Request a Demo", href: "/#request-demo" },
+  secondaryCta: { label: "Try the Chatbot", href: "/#demo" },
   note: "Built for HVAC contractors first, and for plumbing, electrical, roofing, and other trades.",
   preview: {
     label: "Example conversation",
@@ -187,7 +189,7 @@ export const faq = {
     {
       question: "How much does it cost?",
       answer:
-        "Every quote depends on your website, what you need the chatbot to handle, and any integrations. Request a demo and we’ll put together a quote for your business.",
+        "Core is $199 a month plus a $500 one-time setup fee. Custom integrations, like scheduling or CRM connections, are quoted based on your existing tools and scope. See the Pricing page for what’s included.",
     },
   ],
 } as const;
@@ -210,11 +212,119 @@ export const demoRequest = {
 
 export const footer = {
   sections: [
-    { label: "Benefits", href: "#benefits" },
-    { label: "How It Works", href: "#how-it-works" },
-    { label: "Demo", href: "#demo" },
-    { label: "Industries", href: "#industries" },
-    { label: "FAQ", href: "#faq" },
-    { label: "Request a Demo", href: "#request-demo" },
+    { label: "Benefits", href: "/#benefits" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "Demo", href: "/#demo" },
+    { label: "Industries", href: "/#industries" },
+    { label: "FAQ", href: "/#faq" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "Request a Demo", href: "/#request-demo" },
+    { label: "Schedule a Call", href: "/schedule" },
   ],
+} as const;
+
+export const schedule = {
+  // Time zone your hours are in. Use an IANA name, e.g. "America/Chicago" or "America/Los_Angeles".
+  timeZone: "America/New_York",
+  eyebrow: "Schedule a call",
+  heading: "Pick a time that works for you.",
+  intro:
+    "Book a free 30-minute Zoom call. Choose a day and time, add your details, and we’ll send you a Zoom link before the call.",
+  hoursNote: "Available weekdays 5–9 PM and Saturdays 9 AM–2 PM.",
+  unavailable:
+    "Online scheduling isn’t available right now. Please use the demo request form instead, and we’ll follow up by email.",
+  success: "You’re booked. We’ll send a Zoom link to your email before the call.",
+  taken: "Sorry, someone just booked that time. Please pick another.",
+  failure: "Sorry, we couldn’t book that time just now. Please try again in a few minutes.",
+} as const;
+
+export const pricing = {
+  eyebrow: "Pricing",
+  heading: "Simple pricing. Personal support.",
+  intro:
+    "Get a custom chatbot that answers common questions, captures service requests, and helps your team follow up—all configured for your business.",
+  plans: [
+    {
+      id: "core",
+      name: "Core",
+      price: "$199",
+      period: "/month",
+      priceLabel: "$199 per month",
+      setup: "$500 one-time setup fee",
+      description: "The essentials for answering questions and capturing HVAC service inquiries.",
+      listHeading: "Includes",
+      items: [
+        "Custom-branded chatbot for one website and one business location",
+        "Answers based on your approved business information",
+        "Service-area checks",
+        "Customer contact details and service-request capture",
+        "Email notifications for new service requests",
+        "Monthly chatbot performance review",
+        "Up to 30 minutes of content updates each month",
+        "Support during business hours",
+      ],
+      note: "Your quote will specify the included monthly chatbot usage and any additional usage charges before you sign up.",
+      cta: { label: "Request a Demo", href: "/#request-demo" },
+    },
+    {
+      id: "custom",
+      name: "Custom Integrations",
+      price: "Custom quote",
+      period: "",
+      priceLabel: "Custom quote",
+      setup: "",
+      description: "For businesses that need their chatbot connected to more of their workflow.",
+      listHeading: "Potential scope",
+      items: [
+        "Scheduling integrations",
+        "CRM connections",
+        "Multiple business locations",
+        "More complex intake and routing",
+        "Higher usage requirements",
+      ],
+      note: "Availability and pricing depend on your existing tools and the scope of the integration.",
+      cta: { label: "Discuss Your Needs", href: "/#request-demo" },
+    },
+  ],
+  covers: {
+    heading: "What your pricing covers",
+    items: [
+      {
+        title: "Setup",
+        body: "Setup covers learning your business, configuring approved answers, matching your branding, installation, and testing.",
+      },
+      {
+        title: "Monthly service",
+        body: "Monthly service covers chatbot software within your agreed usage allowance, monitoring, updates, and support.",
+      },
+    ],
+  },
+  faq: {
+    eyebrow: "Pricing FAQ",
+    heading: "Questions about pricing",
+    items: [
+      {
+        question: "Is setup a separate charge?",
+        answer: "Yes. Core includes a $500 one-time setup fee and a $199 monthly service fee.",
+      },
+      {
+        question: "Can the chatbot book appointments?",
+        answer:
+          "Core captures service requests. Direct appointment booking requires a separately scoped scheduling integration. A service request is not a confirmed appointment.",
+      },
+      {
+        question: "Are content changes included?",
+        answer:
+          "Core includes up to 30 minutes of content updates each month. Larger changes and additional integrations are quoted separately.",
+      },
+      {
+        question: "Is chatbot usage unlimited?",
+        answer: "No. Your quote specifies the included monthly usage and any additional usage charges before you sign up.",
+      },
+      {
+        question: "Can you support multiple locations?",
+        answer: "Yes, through a custom scope and quote based on your requirements.",
+      },
+    ],
+  },
 } as const;

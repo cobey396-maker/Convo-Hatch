@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { footer, site } from "@/content/site";
 import { Logo } from "./Logo";
 import { Container } from "./ui";
@@ -8,9 +9,9 @@ export function SiteFooter() {
     <footer className="on-dark bg-petrol text-white">
       <Container className="flex flex-col gap-10 py-14 md:flex-row md:items-start md:justify-between">
         <div className="max-w-sm">
-          <a href="#top" className="inline-block rounded-md" aria-label="ConvoHatch, back to top">
+          <Link href="/#top" className="inline-block rounded-md" aria-label="ConvoHatch, back to top">
             <Logo tone="dark" />
-          </a>
+          </Link>
           <p className="mt-4 text-white/85">{site.tagline}</p>
         </div>
         <nav aria-label="Footer">

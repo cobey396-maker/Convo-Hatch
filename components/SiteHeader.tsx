@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { nav } from "@/content/site";
 import { Logo } from "./Logo";
@@ -27,7 +28,7 @@ export function SiteHeader() {
       if (!panelRef.current?.contains(target) && !toggleRef.current?.contains(target)) close(false);
     }
     // Close if the viewport grows past the mobile breakpoint.
-    const desktop = window.matchMedia("(min-width: 768px)");
+    const desktop = window.matchMedia("(min-width: 1024px)");
     function onBreakpoint(event: MediaQueryListEvent) {
       if (event.matches) close(false);
     }
@@ -51,17 +52,17 @@ export function SiteHeader() {
         Skip to content
       </a>
       <Container className="flex h-18 items-center justify-between gap-4">
-        <a href="#top" className="rounded-md" aria-label="ConvoHatch, back to top">
+        <Link href="/#top" className="rounded-md" aria-label="ConvoHatch, back to top">
           <Logo />
-        </a>
+        </Link>
 
-        <nav aria-label="Main" className="hidden md:block">
+        <nav aria-label="Main" className="hidden lg:block">
           <ul className="flex items-center gap-1 lg:gap-2">
             {nav.links.map((link) => (
               <li key={link.href}>
                 <a
                   href={link.href}
-                  className="rounded-full px-3 py-2 font-medium text-petrol transition-colors hover:bg-white hover:text-ocean"
+                  className="rounded-full px-3 py-2 font-medium whitespace-nowrap text-petrol transition-colors hover:bg-white hover:text-ocean"
                 >
                   {link.label}
                 </a>
@@ -73,14 +74,14 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           {/* Wrapper controls visibility so it doesn't fight the button's own display class. */}
           <div className="hidden sm:block">
-            <a href={nav.cta.href} className={buttonClasses("primary", "min-h-11 px-5 py-2.5")}>
+            <a href={nav.cta.href} className={buttonClasses("primary", "min-h-11 px-5 py-2.5 whitespace-nowrap")}>
               {nav.cta.label}
             </a>
           </div>
           <button
             ref={toggleRef}
             type="button"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-petrol ring-1 ring-line ring-inset hover:bg-white md:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-petrol ring-1 ring-line ring-inset hover:bg-white lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-menu"
             onClick={() => setOpen((value) => !value)}
@@ -95,7 +96,7 @@ export function SiteHeader() {
         ref={panelRef}
         id="mobile-menu"
         hidden={!open}
-        className="border-t border-line bg-ice md:hidden"
+        className="border-t border-line bg-ice lg:hidden"
       >
         <Container className="py-4">
           <nav aria-label="Mobile">
