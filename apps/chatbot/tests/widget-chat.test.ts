@@ -90,7 +90,7 @@ test("without AI, approved FAQs, hours, and services still answer", async () => 
 
 test("without AI, price and availability questions never get invented answers", async () => {
   const price = await chat("How much does a new furnace cost?", { ai: false });
-  assert.match(price.reply.text, /don’t have approved pricing information/);
+  assert.match(price.reply.text, /don’t have an approved price/);
   assert.doesNotMatch(price.reply.text, /\$/);
   const appointment = await chat("Can someone come out today?", { ai: false });
   assert.match(appointment.reply.text, /can’t book appointments or confirm availability/);
@@ -122,7 +122,7 @@ test("an AI reply that invents a price, ZIP, phone, appointment, or availability
   const result = await chat("How much is a new furnace?");
   assert.notEqual(result.reply.source, "ai");
   assert.doesNotMatch(result.reply.text, /3,000/);
-  assert.match(result.reply.text, /don’t have approved pricing information/);
+  assert.match(result.reply.text, /don’t have an approved price/);
   f.ai.next = { ok: true, text: "Happy to help with that." };
 });
 
@@ -153,14 +153,17 @@ test("emergencies get the approved safety message", async () => {
   assert.ok(isEmergency("my CO alarm is going off"));
   assert.ok(!isEmergency("do you service gas furnaces?"));
   const result = await chat("I smell gas in the basement");
-  assert.match(result.reply.text, /leave the building now and call 911/);
+  assert.match(result.reply.text, /leave the building now/);
+  assert.match(result.reply.text, /call 911/);
+  assert.match(result.reply.text, /can’t send emergency help/);
+  assert.notEqual(result.reply.suggestCallback, true, "an emergency isn't routed to ordinary intake");
 });
 
 test("contact details typed into chat are removed before storage and never sent to the AI", async () => {
   assert.equal(redactContactDetails("reach me at 555-010-1234 or a@b.co").text, "reach me at [contact details removed] or [contact details removed]");
   f.ai.requests.length = 0;
   const result = await chat("Call me at (555) 010-4444, jordan@example.com");
-  assert.match(result.reply.text, /removed the contact details/);
+  assert.match(result.reply.text, /contact details aren’t kept in the chat/);
   assert.equal(f.ai.requests.length, 0);
   const stored = await f.db.query<{ content: string }>(
     "SELECT content FROM conversation_messages WHERE conversation_id = $1 AND role = 'user'",

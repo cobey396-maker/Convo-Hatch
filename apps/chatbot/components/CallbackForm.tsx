@@ -1,24 +1,37 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import type { PublicClientView } from "@/lib/config";
 import {
   CALLBACK_TIMES,
   EMPTY_LEAD,
   LEAD_LIMITS,
   OTHER_SERVICE,
+  callbackDayOptions,
+  describeCallbackPreference,
   hasLeadErrors,
   normalizeLead,
   validateLead,
   type LeadErrors,
   type LeadField,
   type LeadInput,
+  type TypedDetails,
 } from "@/lib/lead-fields";
+import { detectHazards, safetyMessage } from "@/lib/safety";
 import { post } from "./api";
 
 type Step = "form" | "review" | "done";
 
-const FIELD_ORDER: (LeadField | "contact")[] = ["name", "phone", "email", "contact", "zip", "service", "details", "preferredTime", "timeZone"];
+const FIELD_ORDER: (LeadField | "contact")[] = ["name", "phone", "email", "contact", "zip", "service", "details", "preferredDay", "preferredTime", "timeZone"];
+
+// Fictional details for demos. 555-01xx numbers and .example domains are reserved for fiction.
+const SAMPLE_DETAILS = {
+  name: "Jordan Sample",
+  phone: "(555) 010-0142",
+  email: "jordan@example.com",
+  zip: "54321",
+  details: "Upstairs is warm and the AC is blowing warm air. (Demo sample request.)",
+};
 
 function newKey(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -40,13 +53,19 @@ function zoneLabel(timeZone: string): string {
 
 interface Props {
   client: PublicClientView;
-  ensureConversation: () => Promise<string | null>;
+  /** Starts (or, with forceNew, restarts an expired) chat session and returns its ID. */
+  ensureConversation: (forceNew?: boolean) => Promise<string | null>;
   onClose: (message?: string) => void;
+  /** Details the visitor typed into the chat, kept only in the browser, to save retyping. */
+  prefill?: TypedDetails;
 }
 
-export function CallbackForm({ client, ensureConversation, onClose }: Props) {
+export function CallbackForm({ client, ensureConversation, onClose, prefill = {} }: Props) {
   const [step, setStep] = useState<Step>("form");
-  const [lead, setLead] = useState<LeadInput>({ ...EMPTY_LEAD, timeZone: client.timeZone });
+  const [lead, setLead] = useState<LeadInput>({ ...EMPTY_LEAD, ...prefill, timeZone: client.timeZone });
+  const [duplicate, setDuplicate] = useState(false);
+  const dayOptions = useMemo(() => callbackDayOptions(client.timeZone, client.officeHours), [client.timeZone, client.officeHours]);
+  const leadContext = { timeZone: client.timeZone, hours: client.officeHours };
   const [errors, setErrors] = useState<LeadErrors>({});
   const [visitorZone, setVisitorZone] = useState<string | null>(null);
   const [inServiceArea, setInServiceArea] = useState<boolean | null>(null);
@@ -91,7 +110,7 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
   async function review(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalized = normalizeLead(lead);
-    const found = validateLead(normalized, client.services);
+    const found = validateLead(normalized, client.services, leadContext);
     setErrors(found);
     if (hasLeadErrors(found)) {
       focusFirstError(found);
@@ -105,24 +124,29 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
     setStep("review");
   }
 
+  async function send(conversationId: string | null) {
+    if (!conversationId) return null;
+    return post<{ reference: string; duplicate?: boolean }>("/api/widget/leads", {
+      publicId: client.publicId,
+      conversationId,
+      idempotencyKey: idempotencyKey.current,
+      confirmed: true,
+      lead,
+    });
+  }
+
   async function submit() {
     if (sending) return;
     setSending(true);
     setSubmitError("");
-    const conversationId = await ensureConversation();
-    const result = conversationId
-      ? await post<{ reference: string }>("/api/widget/leads", {
-          publicId: client.publicId,
-          conversationId,
-          idempotencyKey: idempotencyKey.current,
-          confirmed: true,
-          lead,
-        })
-      : null;
+    let result = await send(await ensureConversation());
+    // A chat that expired while the tab was open: start a new one and send again with the same key.
+    if (result?.status === 404) result = await send(await ensureConversation(true));
     setSending(false);
 
     if (result?.status === 200 && result.data.reference) {
       setReference(result.data.reference);
+      setDuplicate(Boolean(result.data.duplicate));
       setStep("done");
       return;
     }
@@ -133,10 +157,27 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
       setTimeout(() => focusFirstError(found), 0);
       return;
     }
-    setSubmitError(
-      result?.data.message ??
-        "We couldn’t send your request. It was not submitted. Please check your connection and try again.",
-    );
+    const phone = client.contact.phone ? ` You can also call the office at ${client.contact.phone}.` : "";
+    if (!result) {
+      // The request may or may not have reached the server; resending is safe (same idempotency key).
+      setSubmitError(
+        `We couldn’t reach the server, so we can’t tell whether your request was saved. Check your connection and press Send request again. It won’t create a duplicate.${phone}`,
+      );
+    } else if (result.status >= 500) {
+      setSubmitError(`Your request wasn’t saved because of a problem on our side. Please try again in a minute.${phone}`);
+    } else {
+      setSubmitError(result.data.message ?? `Your request wasn’t sent. Please try again.${phone}`);
+    }
+  }
+
+  function fillSample() {
+    setLead((current) => ({
+      ...current,
+      ...SAMPLE_DETAILS,
+      service: client.services[0] ?? OTHER_SERVICE,
+      preferredTime: CALLBACK_TIMES[2],
+    }));
+    setErrors({});
   }
 
   const fieldClass =
@@ -156,23 +197,30 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
     return (
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
         <h2 ref={headingRef} tabIndex={-1} className="font-sans text-xl font-semibold tracking-normal text-gray-900">
-          Request received
+          {duplicate ? "Already received" : "Request received"}
         </h2>
-        <p className="text-gray-800">
-          Your reference is <strong className="font-semibold">{reference}</strong>. {client.businessName}’s office will contact you to
-          follow up.
-        </p>
+        {duplicate ? (
+          <p className="text-gray-800">
+            This matches a request you already sent today (reference <strong className="font-semibold">{reference}</strong>), so it
+            wasn’t sent again. {client.businessName}’s office already has it. If something changed, mention it when they contact you.
+          </p>
+        ) : (
+          <p className="text-gray-800">
+            Your reference is <strong className="font-semibold">{reference}</strong>. {client.businessName}’s office will contact you
+            to follow up. Your preferred time is a request, not a guaranteed response time.
+          </p>
+        )}
         <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-950">
           This is a callback request, not a confirmed appointment. No visit is scheduled until the office confirms it with you.
         </p>
         {client.isDemo ? (
           <p className="rounded-lg bg-gray-100 p-3 text-sm text-gray-800">
-            Demo: this business is fictional. Your request was saved for testing and was not sent to any contractor.
+            Demo: this business is fictional. Your request was saved in the demo’s test storage and was not sent to any contractor.
           </p>
         ) : null}
         <button
           type="button"
-          onClick={() => onClose(`Your callback request ${reference} was received.`)}
+          onClick={() => onClose(`Your callback request ${reference} was received. It isn’t a confirmed appointment.`)}
           className="mt-auto rounded-lg bg-[var(--brand)] px-4 py-2.5 font-semibold text-[var(--brand-text)]"
         >
           Back to chat
@@ -189,8 +237,9 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
       ["Service ZIP code", lead.zip],
       ["Service needed", lead.service],
       ["Details", lead.details || "None"],
-      ["Preferred callback time", `${lead.preferredTime}, ${zoneLabel(lead.timeZone)}`],
+      ["Preferred callback", describeCallbackPreference(lead, zoneLabel(lead.timeZone))],
     ];
+    const hazards = detectHazards(lead.details);
     return (
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
         <h2 ref={headingRef} tabIndex={-1} className="font-sans text-xl font-semibold tracking-normal text-gray-900">
@@ -214,17 +263,30 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
           This sends a callback request to {client.businessName}. It is <strong>not</strong> a confirmed appointment; the office will
           contact you.{client.isDemo ? " Demo: nothing is sent to a real business." : ""}
         </p>
+        {hazards.length ? (
+          <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm font-semibold text-red-900">
+            {safetyMessage(hazards)} Sending this request does not send emergency help.
+          </p>
+        ) : null}
         {submitError ? (
           <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
             {submitError}
           </p>
         ) : null}
-        <div className="mt-auto flex gap-3 pt-2">
+        <div className="mt-auto flex flex-wrap gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => onClose("Callback request cancelled. Nothing was sent.")}
+            disabled={sending}
+            className="min-h-11 rounded-lg px-3 py-2.5 font-semibold text-gray-800 underline"
+          >
+            Cancel
+          </button>
           <button
             type="button"
             onClick={() => setStep("form")}
             disabled={sending}
-            className="flex-1 rounded-lg border border-gray-400 px-4 py-2.5 font-semibold text-gray-900"
+            className="min-h-11 flex-1 rounded-lg border border-gray-400 px-4 py-2.5 font-semibold text-gray-900"
           >
             Edit
           </button>
@@ -233,7 +295,7 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
             onClick={submit}
             disabled={sending}
             aria-busy={sending}
-            className="flex-1 rounded-lg bg-[var(--brand)] px-4 py-2.5 font-semibold text-[var(--brand-text)] disabled:opacity-70"
+            className="min-h-11 flex-1 rounded-lg bg-[var(--brand)] px-4 py-2.5 font-semibold text-[var(--brand-text)] disabled:opacity-70"
           >
             {sending ? "Sending…" : "Send request"}
           </button>
@@ -248,13 +310,22 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
         <h2 ref={headingRef} tabIndex={-1} className="font-sans text-xl font-semibold tracking-normal text-gray-900">
           Request a callback
         </h2>
-        <button type="button" onClick={() => onClose()} className="shrink-0 rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 underline">
+        <button type="button" onClick={() => onClose()} className="min-h-11 shrink-0 rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 underline">
           Back to chat
         </button>
       </div>
       <p className="text-sm text-gray-700">
         {client.businessName}’s office will contact you. This is not an appointment booking. You’ll review everything before sending.
       </p>
+      {client.isDemo ? (
+        <button
+          type="button"
+          onClick={fillSample}
+          className="min-h-11 self-start rounded-lg border border-dashed border-gray-500 px-3 py-2 text-sm font-semibold text-gray-800"
+        >
+          Fill in fictional sample details
+        </button>
+      ) : null}
 
       <div>
         <label htmlFor={`${baseId}-name`} className="text-sm font-semibold text-gray-900">
@@ -277,7 +348,7 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
       <fieldset>
         <legend className="text-sm font-semibold text-gray-900">How can the office reach you?</legend>
         <p id={`${baseId}-contact-hint`} className="text-sm text-gray-700">
-          Enter a phone number, an email address, or both.
+          Enter a phone number, an email address, or both. International numbers: start with + and the country code.
         </p>
         <label htmlFor={`${baseId}-phone`} className="mt-2 block text-sm font-semibold text-gray-900">
           Phone
@@ -376,6 +447,31 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
       </div>
 
       <div>
+        <label htmlFor={`${baseId}-day`} className="text-sm font-semibold text-gray-900">
+          Preferred callback day
+        </label>
+        <select
+          id={`${baseId}-day`}
+          name="preferredDay"
+          value={lead.preferredDay}
+          onChange={(event) => update("preferredDay", event.target.value)}
+          aria-invalid={Boolean(errors.preferredDay)}
+          aria-describedby={describedBy("preferredDay", `${baseId}-day-hint`)}
+          className={fieldClass}
+        >
+          {dayOptions.map((option) => (
+            <option key={option.value} value={option.value} disabled={option.closed}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <p id={`${baseId}-day-hint`} className="mt-1 text-sm text-gray-700">
+          Dates are in {client.timeZoneLabel}. A preferred day is a request, not an appointment.
+        </p>
+        {errorText("preferredDay")}
+      </div>
+
+      <div>
         <label htmlFor={`${baseId}-time`} className="text-sm font-semibold text-gray-900">
           Preferred callback time
         </label>
@@ -422,6 +518,9 @@ export function CallbackForm({ client, ensureConversation, onClose }: Props) {
           </p>
         )}
         {errorText("timeZone")}
+        <p className="mt-2 text-sm text-gray-700">
+          Your preferred day and time are a request. The office will reach out as soon as it can; this doesn’t book an appointment.
+        </p>
       </div>
 
       <button type="submit" className="mt-2 rounded-lg bg-[var(--brand)] px-4 py-2.5 font-semibold text-[var(--brand-text)]">

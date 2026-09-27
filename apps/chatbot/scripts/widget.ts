@@ -194,14 +194,16 @@ async function main() {
         const full = args.includes("--full");
         const rows = await db.query<Record<string, unknown>>(
           `SELECT l.reference, l.created_at, l.name, l.email, l.phone, l.zip, l.in_service_area, l.service,
-                  l.preferred_time, l.time_zone, n.status, n.attempts, n.last_error
+                  l.preferred_time, l.preferred_day::text AS preferred_day, l.time_zone, l.details, n.status, n.attempts, n.last_error
            FROM leads l LEFT JOIN lead_notifications n ON n.lead_id = l.id
            WHERE l.client_id = $1 ORDER BY l.created_at DESC LIMIT $2`,
           [client.id, limit],
         );
         if (rows.length === 0) console.log("No service requests yet.");
         for (const row of rows) {
-          const who = full ? `${row.name} | ${row.phone ?? "-"} | ${row.email ?? "-"}` : "(contact hidden; use --full)";
+          const who = full
+            ? `${row.name} | ${row.phone ?? "-"} | ${row.email ?? "-"} | callback: ${row.preferred_day ?? "first available"}, ${row.preferred_time} (${row.time_zone})${row.details ? ` | details: ${row.details}` : ""}`
+            : "(contact hidden; use --full)";
           console.log(
             `${row.reference}  ${new Date(row.created_at as string).toISOString()}  ZIP ${row.zip}${row.in_service_area ? "" : " (outside area)"}  ${row.service}  ${who}  notification: ${row.status}${row.last_error ? ` (${row.last_error}, ${row.attempts} attempts)` : ""}`,
           );

@@ -26,11 +26,29 @@ export interface ClientProfile {
   timeZone: string;
   hours: OpeningHours[];
   hoursNote?: string;
-  services: { name: string; description?: string }[];
-  faqs: { question: string; answer: string }[];
+  /** Approved services. Keywords (e.g. "ductless") help match visitor wording without AI. */
+  services: ApprovedService[];
+  /** Services the business has approved saying it does NOT offer. Anything in neither list is unknown. */
+  notOffered?: ApprovedService[];
+  /** Approved plain-language description of the area, e.g. "Springfield and nearby towns". Coverage is decided by ZIP code. */
+  serviceAreaNote?: string;
+  faqs: ApprovedFaq[];
   contact: { phone?: string; email?: string; website?: string; address?: string };
-  /** Approved wording for emergencies (gas smell, CO alarm). Shown instead of an AI reply. */
+  /** Approved business-specific note added after the built-in emergency safety guidance. */
   emergencyMessage?: string;
+}
+
+export interface ApprovedFaq {
+  question: string;
+  answer: string;
+  /** Extra words that should match this answer (for example brand names). Lowercase. */
+  keywords?: string[];
+}
+
+export interface ApprovedService {
+  name: string;
+  description?: string;
+  keywords?: string[];
 }
 
 export interface ClientLimits {
@@ -179,21 +197,33 @@ export function validateClientConfig(raw: unknown): ValidationResult {
   });
   hours.sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day));
 
-  const services = list(profileSource.services, "profile.services", errors, LIMITS.services).map((entry, index) => {
-    const item = obj(entry);
-    return {
-      name: str(item.name, `profile.services[${index}].name`, errors, { max: 80 }) ?? "",
-      description: str(item.description, `profile.services[${index}].description`, errors, { required: false, max: 400 }),
-    };
-  });
+  const serviceList = (value: unknown, field: string): ApprovedService[] =>
+    list(value, field, errors, LIMITS.services).map((entry, index) => {
+      const item = obj(entry);
+      const service: ApprovedService = { name: str(item.name, `${field}[${index}].name`, errors, { max: 80 }) ?? "" };
+      const description = str(item.description, `${field}[${index}].description`, errors, { required: false, max: 400 });
+      if (description) service.description = description;
+      const keywords = list(item.keywords, `${field}[${index}].keywords`, errors, 20)
+        .map((keyword, keywordIndex) => str(keyword, `${field}[${index}].keywords[${keywordIndex}]`, errors, { max: 40 })?.toLowerCase())
+        .filter((keyword): keyword is string => Boolean(keyword));
+      if (keywords.length) service.keywords = keywords;
+      return service;
+    });
+  const services = serviceList(profileSource.services, "profile.services");
   if (services.length === 0) errors.push("profile.services needs at least one approved service");
+  const notOffered = serviceList(profileSource.notOffered, "profile.notOffered");
 
   const faqs = list(profileSource.faqs, "profile.faqs", errors, LIMITS.faqs).map((entry, index) => {
     const item = obj(entry);
-    return {
+    const faq: ApprovedFaq = {
       question: str(item.question, `profile.faqs[${index}].question`, errors, { max: 200 }) ?? "",
       answer: str(item.answer, `profile.faqs[${index}].answer`, errors, { max: LIMITS.longText }) ?? "",
     };
+    const keywords = list(item.keywords, `profile.faqs[${index}].keywords`, errors, 30)
+      .map((keyword, keywordIndex) => str(keyword, `profile.faqs[${index}].keywords[${keywordIndex}]`, errors, { max: 40 })?.toLowerCase())
+      .filter((keyword): keyword is string => Boolean(keyword));
+    if (keywords.length) faq.keywords = keywords;
+    return faq;
   });
 
   const contactSource = obj(profileSource.contact);
@@ -210,11 +240,14 @@ export function validateClientConfig(raw: unknown): ValidationResult {
     timeZone,
     hours,
     hoursNote: str(profileSource.hoursNote, "profile.hoursNote", errors, { required: false, max: 400 }),
-    services: services.map(({ name, description }) => (description ? { name, description } : { name })),
+    services,
+    ...(notOffered.length ? { notOffered } : {}),
     faqs,
     contact: Object.fromEntries(Object.entries(contact).filter(([, value]) => value)) as ClientProfile["contact"],
     emergencyMessage: str(profileSource.emergencyMessage, "profile.emergencyMessage", errors, { required: false, max: 600 }),
+    serviceAreaNote: str(profileSource.serviceAreaNote, "profile.serviceAreaNote", errors, { required: false, max: 300 }),
   };
+  if (!profile.serviceAreaNote) delete profile.serviceAreaNote;
   if (!profile.hoursNote) delete profile.hoursNote;
   if (!profile.emergencyMessage) delete profile.emergencyMessage;
 
@@ -322,6 +355,23 @@ export function formatHours(profile: ClientProfile): string[] {
   });
 }
 
+/** Hours with runs of identical days grouped: "Monday–Friday: 7:30 AM – 6:00 PM; Saturday: …; Sunday: Closed". */
+export function formatHoursCompact(profile: ClientProfile): string[] {
+  const slots = DAYS.map((day) => {
+    const entry = profile.hours.find((item) => item.day === day);
+    return { day, text: entry ? `${formatTime(entry.open)} – ${formatTime(entry.close)}` : "Closed" };
+  });
+  const groups: { first: Day; last: Day; text: string }[] = [];
+  for (const slot of slots) {
+    const previous = groups.at(-1);
+    if (previous && previous.text === slot.text) previous.last = slot.day;
+    else groups.push({ first: slot.day, last: slot.day, text: slot.text });
+  }
+  return groups.map((group) =>
+    `${DAY_LABELS[group.first]}${group.first === group.last ? "" : `–${DAY_LABELS[group.last]}`}: ${group.text}`,
+  );
+}
+
 export function timeZoneLabel(timeZone: string, date = new Date()): string {
   const part = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "long" })
     .formatToParts(date)
@@ -340,8 +390,11 @@ export interface PublicClientView {
   hours: string[];
   hoursNote?: string;
   services: string[];
-  faqs: { question: string; answer: string }[];
+  faqs: ApprovedFaq[];
   contact: ClientProfile["contact"];
+  /** Opening days for the callback-day picker, e.g. ["monday", …]. */
+  /** Opening days and closing times, for the callback-day choices. */
+  officeHours: { day: Day; close: string }[];
 }
 
 export function toPublicView(client: ClientConfig): PublicClientView {
@@ -358,5 +411,6 @@ export function toPublicView(client: ClientConfig): PublicClientView {
     services: profile.services.map((service) => service.name),
     faqs: profile.faqs,
     contact: profile.contact,
+    officeHours: profile.hours.map((entry) => ({ day: entry.day, close: entry.close })),
   };
 }

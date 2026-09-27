@@ -3,15 +3,10 @@
 
 import {
   approvedInfoReply,
-  contactDetailsReply,
-  emergencyReply,
   findZip,
   guardAiReply,
-  isEmergency,
-  isRepairInstructionRequest,
-  isServiceAreaOnly,
-  redactContactDetails,
-  repairReply,
+  redactPrivateDetails,
+  ruleReply,
   serviceAreaReply,
   unknownReply,
   type Reply,
@@ -134,8 +129,9 @@ export async function sendMessage(
     };
   }
 
-  // Contact details are removed before anything is stored or sent to the AI model.
-  const { text: safeText, redacted } = redactContactDetails(text);
+  // Contact details and sensitive numbers are removed before anything is stored or sent to the AI.
+  const redaction = redactPrivateDetails(text);
+  const safeText = redaction.text;
   await deps.db.query(
     "INSERT INTO conversation_messages (conversation_id, role, content, created_at) VALUES ($1, 'user', $2, $3)",
     [conversation.id, safeText, now],
@@ -144,38 +140,43 @@ export async function sendMessage(
   let aiAvailable = deps.ai !== null;
   let reply: Reply;
   const zip = findZip(safeText);
+  const zipReply = zip ? serviceAreaReply(client, zip) : null;
+  // The same result without its closing question, for when an answer to the rest follows.
+  const zipLead = zip ? serviceAreaReply(client, zip, false).text : "";
+  // Without AI, a ZIP result is followed by whatever the approved information says about the rest.
+  const withoutAi = (): Reply => {
+    if (!zipReply) return fallbackReply(client, safeText, true);
+    const extra = approvedInfoReply(client, safeText.replace(/(?<![\d-])\d{5}(?:-\d{4})?(?![\d-])/g, " "));
+    return extra ? { ...zipReply, text: `${zipLead} ${extra.text}` } : zipReply;
+  };
 
-  if (isEmergency(safeText)) {
-    reply = emergencyReply(client);
-  } else if (redacted) {
-    reply = contactDetailsReply(client);
-  } else if (isRepairInstructionRequest(safeText)) {
-    reply = repairReply(client);
-  } else if (zip && isServiceAreaOnly(safeText)) {
-    reply = serviceAreaReply(client, zip);
+  // Rules only pattern-match the text; nothing from it is stored beyond the redacted copy above.
+  const rule = ruleReply(client, text, redaction);
+  if (rule) {
+    reply = rule;
   } else if (!deps.ai) {
-    reply = zip ? serviceAreaReply(client, zip) : fallbackReply(client, safeText, true);
+    reply = withoutAi();
   } else if (
     !(await consume(deps.db, `c:${client.id}:ai`, WINDOWS.day, clientLimit(client, "dailyAiReplies"), now)) ||
     !(await consume(deps.db, "global:ai", WINDOWS.day, limits.globalDailyAiReplies, now))
   ) {
     // Usage cap reached: keep helping with approved answers, and say live AI is unavailable.
     aiAvailable = false;
-    reply = zip ? serviceAreaReply(client, zip) : fallbackReply(client, safeText, true);
+    reply = withoutAi();
   } else {
-    const zipReply = zip ? serviceAreaReply(client, zip) : null;
     const result = await deps.ai({
       system: buildSystemPrompt(client),
       note: zipReply
-        ? `The visitor's message includes ZIP code ${zip}. The website has already shown them this service-area result: "${zipReply.text}" Don't repeat or contradict it, and don't mention ZIP codes; answer only the rest of their message.`
+        ? `The visitor's message includes ZIP code ${zip}. The website has already shown them this service-area result: "${zipLead}" Don't repeat or contradict it, and don't mention ZIP codes; answer only the rest of their message.`
         : undefined,
       history: await recentHistory(deps, conversation.id),
     });
-    const guard = result.ok ? guardAiReply(result.text, buildBusinessFacts(client)) : null;
+    // An empty or whitespace-only reply counts as a failure, not a blank message.
+    const guard = result.ok ? (result.text.trim() ? guardAiReply(result.text, buildBusinessFacts(client)) : { ok: false as const, reason: "empty" }) : null;
 
     if (result.ok && guard?.ok) {
       reply = {
-        text: zipReply ? `${zipReply.text} ${result.text}` : result.text,
+        text: zipReply ? `${zipLead} ${result.text.trim()}` : result.text.trim(),
         source: "ai",
         suggestCallback: zipReply ? true : undefined,
       };

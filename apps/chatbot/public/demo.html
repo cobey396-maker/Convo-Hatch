@@ -24,6 +24,8 @@
     button.cta:focus-visible { outline: 3px solid #111; outline-offset: 3px; }
     footer { padding: 16px; font-size: 14px; color: #555; }
     /* A sticky call bar like many contractor sites have on phones. The widget is told to sit above it. */
+    .try ul { margin: 0; padding-left: 1.2em; }
+    .try li { margin: 6px 0; }
     .call-bar { display: none; }
     @media (max-width: 480px) {
       .call-bar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; background: var(--green); color: #fff; padding: 14px 16px; justify-content: space-between; align-items: center; font: 600 16px system-ui, sans-serif; z-index: 10; }
@@ -46,6 +48,18 @@
     <h2>Stay comfortable all year</h2>
     <p>This page stands in for a contractor's existing website. The chat button in the corner is added by the ConvoHatch installation snippet at the bottom of this page, exactly as a contractor would install it.</p>
     <p><button class="cta" type="button" onclick="window.ConvoHatch && window.ConvoHatch.open()">Ask us a question</button></p>
+
+    <section class="card try" aria-labelledby="try-heading">
+      <h2 id="try-heading">Try the demo</h2>
+      <p>Everything here is fictional. The chat doesn't dispatch technicians or book real appointments, and requests are never sent to a contractor.</p>
+      <ul>
+        <li>Ask: <q>Do you install mini-splits?</q> or <q>What does a repair visit cost?</q></li>
+        <li>Something it can't confirm: <q>Do you sell pool heaters?</q></li>
+        <li>Service area: ZIP <strong>54321</strong> is covered; <strong>98765</strong> is not.</li>
+        <li>Callback request: use name <strong>Jordan Sample</strong> and phone <strong>(555) 010-0142</strong>, or press <q>Fill in fictional sample details</q> in the form.</li>
+        <li><q>Start over</q> in the chat header clears the conversation.</li>
+      </ul>
+    </section>
 
     <h2 id="services">Services</h2>
     <div class="grid">

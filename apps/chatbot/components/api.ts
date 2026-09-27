@@ -5,6 +5,7 @@ export interface ApiResult<T> {
   data: T & { error?: string; message?: string };
 }
 
+/** Null means the request never got a response (offline, timed out); anything else is the server's answer. */
 export async function post<T>(path: string, body: unknown): Promise<ApiResult<T> | null> {
   try {
     const response = await fetch(path, {
@@ -12,6 +13,8 @@ export async function post<T>(path: string, body: unknown): Promise<ApiResult<T>
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
+      // The server gives up on the AI after about 20 seconds; this only catches a dead connection.
+      signal: AbortSignal.timeout(35_000),
     });
     const data = (await response.json().catch(() => ({}))) as ApiResult<T>["data"];
     return { status: response.status, data };

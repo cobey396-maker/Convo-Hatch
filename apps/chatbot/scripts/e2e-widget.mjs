@@ -75,7 +75,8 @@ await step("desktop: keyboard-only chat and callback request", async () => {
   assert.ok(await input.evaluate((element) => document.activeElement === element), "focus moves into the chat input");
 
   await frame.getByText("AI assistant", { exact: true }).waitFor();
-  await frame.getByText(/Demo of a fictional business/).waitFor();
+  await frame.getByText(/ConvoHatch demo of a fictional business/).waitFor();
+  await frame.getByRole("button", { name: /Start over/ }).waitFor();
   await frame.getByText(/Live AI is unavailable/).waitFor();
 
   await page.keyboard.type("Do you serve 54321?");
@@ -89,7 +90,7 @@ await step("desktop: keyboard-only chat and callback request", async () => {
   await frame.getByText("I can’t give repair or troubleshooting instructions", { exact: false }).waitFor();
   await page.keyboard.type("Do you offer free estimates?");
   await page.keyboard.press("Enter");
-  await frame.getByText("Estimates for new heating and cooling systems are free.", { exact: false }).waitFor();
+  await frame.getByText("Estimates for replacing a heating or cooling system are free.", { exact: false }).waitFor();
   await page.screenshot({ path: `${SHOTS}/desktop-2-chat.png` });
 
   // Open the callback form with the keyboard.
@@ -107,17 +108,29 @@ await step("desktop: keyboard-only chat and callback request", async () => {
   await page.keyboard.type("Jordan Sample");
   await frame.getByLabel("Phone").focus();
   await page.keyboard.type("555-010-0142");
-  await frame.getByLabel("ZIP code where you need service").focus();
+  // The ZIP field is prefilled from the last ZIP typed in the chat (98765); replace it.
+  const zipField = frame.getByLabel("ZIP code where you need service");
+  assert.equal(await zipField.inputValue(), "98765");
+  await zipField.focus();
+  await page.keyboard.press("Control+A");
   await page.keyboard.type("54321");
   await frame.getByLabel("Service needed").selectOption("Furnace repair");
   await frame.getByLabel("Details (optional)").focus();
   await page.keyboard.type("No heat upstairs.");
+  // The day list is in the business's time zone; pick the first specific date.
+  const daySelect = frame.getByLabel("Preferred callback day");
+  assert.equal(await daySelect.locator("option").first().textContent(), "First available day");
+  // Closed days (Sunday) are listed but can't be chosen.
+  assert.ok((await daySelect.locator("option[disabled]").allTextContents()).every((label) => label.includes("(office closed)")));
+  const firstOpenDay = await daySelect.locator("option:not([disabled])").nth(1).getAttribute("value");
+  await daySelect.selectOption(firstOpenDay);
   await frame.getByLabel("Preferred callback time").selectOption("Morning (8 AM – 12 PM)");
   await frame.getByRole("button", { name: "Review request" }).focus();
   await page.keyboard.press("Enter");
 
   await frame.getByRole("heading", { name: "Review your request" }).waitFor();
   await frame.getByText("It is not a confirmed appointment", { exact: false }).waitFor();
+  await frame.getByText(/Morning \(8 AM – 12 PM\) \(Central (Daylight|Standard) Time\)/).waitFor();
   await frame.getByText("(555) 010-0142").or(frame.getByText("555-010-0142")).first().waitFor();
   await page.screenshot({ path: `${SHOTS}/desktop-3-review.png` });
 
@@ -174,14 +187,86 @@ await step("mobile: launcher clears the sticky call bar; panel is full screen an
   assert.equal(Math.round(panelBox.height), viewport.height);
   const frame = page.frameLocator("[data-convohatch-widget] iframe");
   await frame.getByText("Hi! I’m the AI assistant", { exact: false }).waitFor();
-  await frame.getByRole("button", { name: "What are your hours?" }).tap();
-  await frame.getByText("Monday: 7:30 AM – 6:00 PM", { exact: false }).waitFor();
+  await frame.getByRole("button", { name: "What services do you offer?" }).tap();
+  await frame.getByText("approved list of services", { exact: false }).waitFor();
+  // Long messages wrap instead of widening the panel.
+  const input = frame.getByLabel("Type your question");
+  await input.tap();
+  await input.fill(`Do you fix ${"supercalifragilisticheatpump".repeat(6)} systems and what are your hours?`);
+  await input.press("Enter");
+  await frame.getByText("Monday–Friday: 7:30 AM – 6:00 PM", { exact: false }).waitFor();
+  const scrollWidth = await frame.locator("body").evaluate((body) => body.scrollWidth);
+  assert.ok(scrollWidth <= viewport.width, `no horizontal scroll (${scrollWidth}px)`);
   await page.screenshot({ path: `${SHOTS}/mobile-2-open.png` });
 
   await frame.getByRole("button", { name: "Close chat" }).tap();
   await page.waitForTimeout(100);
   assert.equal(await launcher.getAttribute("aria-expanded"), "false");
   assert.ok(await launcher.isVisible());
+  await context.close();
+});
+
+// ---------- Demo journeys: safety, privacy, prefill, cancel, sample details, start over ----------
+await step("demo: safety reply, HTML as text, prefill from chat, cancel, sample details, start over", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  await page.goto(SITE);
+  const launcher = launcherOf(page);
+  await launcher.waitFor({ state: "visible", timeout: 20_000 });
+  await launcher.click();
+  const frame = page.frameLocator("[data-convohatch-widget] iframe");
+  const input = frame.getByLabel("Type your question");
+  await input.waitFor();
+
+  async function say(text) {
+    await input.fill(text);
+    await input.press("Enter");
+  }
+
+  await say("I smell gas by the furnace");
+  await frame.getByText("If you smell gas, leave the building now.", { exact: false }).waitFor();
+  await frame.getByText("This chat can’t send emergency help", { exact: false }).waitFor();
+
+  await say('<img src=x onerror="window.__xss=1"> <b>bold</b> do you clean ducts?');
+  await frame.getByText('<img src=x onerror="window.__xss=1"> <b>bold</b> do you clean ducts?').waitFor();
+  await frame.getByText("doesn’t offer ductwork", { exact: false }).waitFor();
+  assert.equal(await frame.locator("img[src=x]").count(), 0, "HTML is shown as text");
+
+  // Contact details typed in chat are not kept server-side, but prefill the form in this browser.
+  await say("My name is Jordan Sample, call 555-010-0142, zip 54322");
+  await frame.getByText("contact details aren’t kept in the chat", { exact: false }).waitFor();
+  await frame.getByRole("button", { name: "Request a callback" }).last().click();
+  assert.equal(await frame.getByLabel("Name").inputValue(), "Jordan Sample");
+  assert.equal(await frame.getByLabel("Phone").inputValue(), "555-010-0142");
+  assert.equal(await frame.getByLabel("ZIP code where you need service").inputValue(), "54322");
+  await page.screenshot({ path: `${SHOTS}/demo-1-prefill.png` });
+
+  // Review, then cancel: nothing is sent.
+  await frame.getByLabel("Service needed").selectOption("AC repair");
+  await frame.getByLabel("Preferred callback time").selectOption("Any time during office hours");
+  await frame.getByRole("button", { name: "Review request" }).click();
+  await frame.getByRole("heading", { name: "Review your request" }).waitFor();
+  await frame.getByRole("button", { name: "Cancel" }).click();
+  await frame.getByText("Callback request cancelled. Nothing was sent.").waitFor();
+
+  // Sample-details button fills fictional values; a hazard in the details shows the safety alert on review.
+  await frame.getByRole("button", { name: "Request a callback" }).last().click();
+  await frame.getByRole("button", { name: "Fill in fictional sample details" }).click();
+  assert.equal(await frame.getByLabel("Phone").inputValue(), "(555) 010-0142");
+  await frame.getByLabel("Service needed").selectOption("Furnace repair");
+  await frame.getByLabel("Details (optional)").fill("Furnace smells like something burning.");
+  await frame.getByLabel("Preferred callback time").selectOption("Afternoon (12 – 5 PM)");
+  await frame.getByRole("button", { name: "Review request" }).click();
+  await frame.getByText("Sending this request does not send emergency help.", { exact: false }).waitFor();
+  await page.screenshot({ path: `${SHOTS}/demo-2-review-safety.png` });
+  await frame.getByRole("button", { name: "Cancel" }).click();
+
+  // Start over clears the conversation and the typed details.
+  await frame.getByRole("button", { name: /Start over/ }).click();
+  await frame.getByText("Hi! I’m the AI assistant", { exact: false }).waitFor();
+  assert.equal(await frame.getByText("I smell gas by the furnace").count(), 0);
+  await frame.getByRole("button", { name: "Request a callback" }).last().click();
+  assert.equal(await frame.getByLabel("Name").inputValue(), "");
   await context.close();
 });
 
