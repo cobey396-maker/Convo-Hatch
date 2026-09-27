@@ -7,7 +7,7 @@
     "branding": {
       "primaryColor": "#1f5f5b",
       "assistantName": "Cedar Hollow assistant",
-      "greeting": "Hi! I’m the AI assistant for Cedar Hollow Heating & Air, a fictional demo business. I can answer questions about our services and hours, check whether we serve your ZIP code, and take a callback request.",
+      "greeting": "Hi! I’m the AI assistant for Cedar Hollow Heating & Air, a fictional business in this ConvoHatch demo. I can answer questions about services and hours, check whether a ZIP code is in the service area, and take a callback request. I can’t book appointments or send a technician.",
       "launcherLabel": "Chat with us"
     },
     "timeZone": "America/Chicago",
@@ -19,35 +19,84 @@
       { "day": "friday", "open": "07:30", "close": "18:00" },
       { "day": "saturday", "open": "09:00", "close": "13:00" }
     ],
-    "hoursNote": "Callback requests sent outside office hours are answered the next business day.",
+    "hoursNote": "Also closed on New Year’s Day, Memorial Day, Independence Day, Labor Day, Thanksgiving, and Christmas. Callback requests sent outside office hours are returned the next business day.",
+    "serviceAreaNote": "Springfield (fictional) and nearby towns. Coverage is confirmed by 5-digit ZIP code.",
     "services": [
-      { "name": "AC repair", "description": "Diagnosis and repair of central air conditioners." },
-      { "name": "Furnace repair", "description": "Diagnosis and repair of gas and electric furnaces." },
-      { "name": "Heat pump service", "description": "Repair and seasonal service for heat pumps." },
-      { "name": "Seasonal maintenance", "description": "Spring cooling and fall heating tune-ups." },
-      { "name": "New system estimate", "description": "In-home visit to discuss replacing a heating or cooling system." },
-      { "name": "Thermostat installation", "description": "Installing and setting up programmable and smart thermostats." }
+      { "name": "AC repair", "description": "Diagnosis and repair of central air conditioners for homes.", "keywords": ["ac", "a/c", "air conditioner", "air conditioning", "central air", "cooling", "not cooling", "warm air"] },
+      { "name": "AC replacement and installation", "description": "Replacing or installing central air conditioners for homes.", "keywords": ["new ac", "replace ac", "ac replacement", "install ac", "new air conditioner"] },
+      { "name": "Furnace repair", "description": "Diagnosis and repair of gas and electric furnaces.", "keywords": ["furnace", "no heat", "not heating"] },
+      { "name": "Furnace replacement and installation", "description": "Replacing or installing gas and electric furnaces.", "keywords": ["new furnace", "replace furnace", "furnace replacement", "install furnace"] },
+      { "name": "Heat pump repair and installation", "description": "Repair, replacement, and seasonal service for heat pumps.", "keywords": ["heat pump", "heat pumps"] },
+      { "name": "Ductless mini-split installation and service", "description": "Installing and servicing ductless mini-split systems.", "keywords": ["mini split", "mini-split", "minisplit", "ductless"] },
+      { "name": "Seasonal maintenance", "description": "Spring cooling and fall heating tune-ups.", "keywords": ["maintenance", "tune-up", "tune up", "tuneup", "checkup", "check-up", "inspection"] },
+      { "name": "Thermostat installation", "description": "Installing and setting up standard, programmable, and smart thermostats.", "keywords": ["thermostat", "smart thermostat", "programmable thermostat"] },
+      { "name": "New system estimate", "description": "In-home visit to discuss replacing a heating or cooling system.", "keywords": ["estimate", "quote", "new system", "replacement estimate"] }
+    ],
+    "notOffered": [
+      { "name": "Commercial or business properties (Cedar Hollow works on homes only)", "keywords": ["commercial", "office building", "restaurant", "warehouse", "rtu", "rooftop unit", "business property"] },
+      { "name": "Ductwork installation, duct repair, or duct cleaning", "keywords": ["duct", "ducts", "ductwork", "duct cleaning", "air duct"] },
+      { "name": "Indoor air quality products (air purifiers, humidifiers, UV lights)", "keywords": ["air quality", "indoor air", "air purifier", "purifier", "humidifier", "dehumidifier", "uv light", "air scrubber"] },
+      { "name": "Boilers or radiant heating", "keywords": ["boiler", "radiant", "radiator", "hydronic"] },
+      { "name": "Water heaters, plumbing, or electrical work", "keywords": ["water heater", "hot water", "plumbing", "plumber", "electrician", "electrical panel", "wiring"] }
     ],
     "faqs": [
       {
+        "question": "Do you work on homes and businesses?",
+        "answer": "Cedar Hollow works on homes only. It doesn’t take commercial or business properties."
+      },
+      {
+        "question": "How much does a repair visit cost?",
+        "answer": "Repair visits have an $89 diagnostic fee (sample demo price). The technician explains the repair price before any work starts, and the fee is applied to the repair if you approve it the same day.",
+        "keywords": ["diagnostic", "diagnostic fee", "service call", "service fee", "trip charge", "trip fee"]
+      },
+      {
         "question": "Do you offer free estimates?",
-        "answer": "Estimates for new heating and cooling systems are free. Repair visits include a diagnostic fee, and the office explains it before booking."
+        "answer": "Estimates for replacing a heating or cooling system are free. Repair visits have the $89 diagnostic fee (sample demo price)."
+      },
+      {
+        "question": "Can you give me an exact price over chat?",
+        "answer": "No. Apart from the diagnostic fee and the Comfort Club plan, prices depend on the equipment and the job, so the office gives prices after a technician has looked at it."
+      },
+      {
+        "question": "Do you offer discounts or coupons?",
+        "answer": "Comfort Club members get 10% off repairs. No other discounts or coupons are currently offered."
+      },
+      {
+        "question": "Do you offer maintenance plans?",
+        "answer": "Yes. The Comfort Club plan is $159 per year (sample demo price) and includes a spring cooling tune-up and a fall heating tune-up, plus 10% off repairs."
+      },
+      {
+        "question": "Do you offer financing?",
+        "answer": "Financing is available for new system installations, subject to credit approval. The office can share the details on a callback."
+      },
+      {
+        "question": "What warranty do you offer?",
+        "answer": "New installations include a 1-year labor warranty from Cedar Hollow in addition to the manufacturer’s equipment warranty. Repairs include a 90-day labor warranty."
       },
       {
         "question": "Do you work on all brands?",
-        "answer": "Yes. Our technicians service most major brands of furnaces, air conditioners, and heat pumps."
+        "answer": "Cedar Hollow services most major brands of furnaces, air conditioners, heat pumps, and mini-splits. The office can confirm for a specific older or unusual model.",
+        "keywords": ["brand", "trane", "carrier", "lennox", "goodman", "rheem", "ruud", "york", "bryant", "american standard", "daikin", "mitsubishi", "fujitsu", "amana", "heil", "payne", "coleman", "bosch"]
       },
       {
         "question": "Are your technicians licensed and insured?",
         "answer": "Yes. All Cedar Hollow technicians are licensed and insured."
       },
       {
-        "question": "Do you offer maintenance plans?",
-        "answer": "Yes. Our Comfort Club plan includes two seasonal tune-ups a year. The office can share details on a callback."
+        "question": "What payment methods do you accept?",
+        "answer": "Cedar Hollow accepts cash, checks, and major credit cards, paid when the work is done. The chat never asks for payment details."
       },
       {
-        "question": "What payment methods do you accept?",
-        "answer": "We accept cash, checks, and major credit cards."
+        "question": "Do you offer after-hours emergency service?",
+        "answer": "No. Cedar Hollow doesn’t offer after-hours or emergency service. Callback requests sent outside office hours are returned the next business day."
+      },
+      {
+        "question": "How soon can someone come?",
+        "answer": "I can’t check the schedule or promise a time. Send a callback request and the office will contact you about the first available appointment."
+      },
+      {
+        "question": "Can I request a specific technician?",
+        "answer": "You can mention it in your callback request, and the office will let you know whether that technician is available. I can’t assign technicians."
       }
     ],
     "contact": {
@@ -55,7 +104,7 @@
       "email": "office@cedarhollow.example",
       "address": "100 Sample Street, Springfield (fictional)"
     },
-    "emergencyMessage": "If you smell gas, a carbon monoxide alarm is sounding, or you see smoke or fire, leave the building now and call 911 from outside. Then call your gas utility."
+    "emergencyMessage": "Cedar Hollow doesn’t offer emergency service. Once emergency responders say it’s safe, you can call the office at (555) 010-0199 during office hours about repairs."
   },
   "serviceZipCodes": ["54321", "54322", "54323", "54325", "54330"],
   "leadDestinationEmails": [],

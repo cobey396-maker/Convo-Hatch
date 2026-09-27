@@ -66,7 +66,7 @@ Inside `apps/chatbot` (from the repository root, add `-w @convohatch/chatbot`, e
 | Command | What it does |
 | --- | --- |
 | `npm run lint` / `npm run typecheck` | ESLint, `tsc --noEmit` |
-| `npm test` | Tests against an in-memory PostgreSQL: client isolation, unknown questions and missing information, ZIP checks, repair and emergency handling, AI output guard, lead validation, explicit submission, duplicate prevention, notification failures and retries, demo suppression, rate limits and usage caps, missing AI/database configuration, retention |
+| `npm test` | Tests against an in-memory PostgreSQL: client isolation, unknown questions and missing information, ZIP checks, repair and emergency handling, AI output guard, lead validation, explicit submission, duplicate prevention, notification failures and retries, demo suppression, rate limits and usage caps, missing AI/database configuration, retention. `tests/widget-scenarios.test.ts` runs the demo scenario matrix (see [docs/demo.md](docs/demo.md)) against the real demo config. |
 | `npm run build` | Production build |
 | `npm run test:e2e` | Browser test (see below) |
 
@@ -87,7 +87,7 @@ Then:
 npm run test:e2e
 ```
 
-It checks, on the demo contractor site: the launcher is reachable with Tab; Enter opens the chat and moves focus into it; ZIP, repair, and FAQ answers; the callback form's error handling, review step, and submission, entirely by keyboard, and that the `[DEMO]` notification email reached the local outbox addressed only to the demo inbox (set `E2E_OUTBOX_DIR=off` to skip this when using Resend); Escape closes and returns focus; on an iPhone-sized screen the launcher sits above the site's sticky call bar and the chat is full screen; an unapproved website (`127.0.0.1:4000`) and an unknown client ID get no launcher. Screenshots go to `.e2e-screenshots/`.
+It checks, on the demo contractor site: the launcher is reachable with Tab; the demo notice and "Start over" are shown; the gas-smell safety reply; HTML typed into chat is shown as text; contact details typed into chat prefill the callback form; Cancel on the review screen sends nothing; the fictional sample-details button; the safety alert on the review screen; Start over clears the chat and typed details; closed days can't be chosen as a callback day; Enter opens the chat and moves focus into it; ZIP, repair, and FAQ answers; the callback form's error handling, review step, and submission, entirely by keyboard, and that the `[DEMO]` notification email reached the local outbox addressed only to the demo inbox (set `E2E_OUTBOX_DIR=off` to skip this when using Resend); Escape closes and returns focus; on an iPhone-sized screen the launcher sits above the site's sticky call bar and the chat is full screen; an unapproved website (`127.0.0.1:4000`) and an unknown client ID get no launcher. Screenshots go to `.e2e-screenshots/`.
 
 ## Configure a client
 
@@ -146,24 +146,25 @@ Optional attributes: `data-position="left"`; `data-offset-bottom="24"`; `data-mo
 
 Every message is handled on the server, in this order, using only the requesting client's settings:
 
-1. Emergency wording (gas smell, CO alarm, smoke, fire) → the approved emergency message. No AI.
-2. Email addresses or phone numbers typed into chat → removed before storage; the visitor is pointed to the callback form. No AI.
-3. Requests for repair or troubleshooting instructions → declined with a callback offer. No AI.
-4. ZIP code questions → checked against `serviceZipCodes`. No AI.
+1. Hazards (gas smell, CO alarm going off, smoke or fire, sparks or burning smell, someone in danger) → fixed safety wording from `lib/safety.ts` (leave, call 911 from outside, this chat can't send help), then the client's `emergencyMessage`. No AI. Routine "no heat" or "not cooling" messages don't trigger it.
+2. Card numbers, SSNs, email addresses, and phone numbers typed into chat → removed before storage and before the AI sees anything; the visitor is warned or pointed to the callback form. No AI.
+3. Attempts to override instructions, impersonate an admin, or extract the prompt; non-English messages; greetings; requests for a person; appointment or invoice lookups; specific-technician requests; repair or troubleshooting instructions → fixed replies. No AI.
+4. Location: a ZIP code is checked against `serviceZipCodes`; a town name alone, a partial ZIP, or a non-US postal code gets a request for the 5-digit ZIP. Coverage is never guessed from a town name. No AI.
 5. Anything else → Claude with a system prompt containing only the client's approved facts, instructions to admit missing information and offer a callback, and rules against inventing prices, availability, service areas, policies, or appointment confirmations. Visitor text is treated as untrusted.
 6. Every AI reply is checked before it's shown. A reply that states a price, ZIP code, phone number, or email that isn't in the approved facts, confirms an appointment, or promises availability is replaced by an automatic answer.
-7. If AI isn't configured, fails, or a usage cap is reached, the visitor gets an automatic answer from the approved FAQs, hours, and services, or "I don't have approved information about that" plus a callback offer. The widget shows when live AI is unavailable, and each reply is labeled "AI-generated answer" or "Automatic reply".
+7. If AI isn't configured, fails, times out (10 seconds, one retry), returns nothing, or a usage cap is reached, the visitor gets an automatic answer from the approved FAQs (with optional `keywords`), hours, offered and not-offered services, or "I don't have approved information about that" plus a callback offer. A message that asks several things gets each matching approved answer. The widget shows when live AI is unavailable, and each reply is labeled "AI-generated answer" or "Automatic reply".
 
 The browser never sends instructions, history, or destinations: it sends the public client ID, a server-issued conversation ID, and the visitor's text. History for the AI is read from the database for that conversation and client only.
 
 ## Service requests (leads)
 
-The visitor fills in name, phone and/or email, service ZIP code, service needed (from the approved list), optional details, and a preferred callback window. If their browser's time zone differs from the business's, they choose which one they mean. They review everything on a summary screen that states it's a callback request, not an appointment, and press **Send request**.
+The visitor fills in name, phone (US, or international starting with `+`) and/or email, service ZIP code (ZIP+4 accepted), service needed (from the approved list), optional details, and a preferred callback day and window. Callback days are calendar dates in the business's time zone ("Today" only until closing; closed days can't be chosen). Details typed into the chat prefill the form in the visitor's browser only. Demo clients show a "Fill in fictional sample details" button. If their browser's time zone differs from the business's, they choose which one they mean. They review everything on a summary screen that states it's a callback request, not an appointment, and press **Send request** (or **Cancel**, which sends nothing). If the details mention a hazard, the review screen repeats the safety guidance and says the request doesn't send emergency help.
 
 The server re-validates everything, then stores the lead and its notification record in a single database statement **before** reporting success. The visitor sees a reference like `CH-7K3M9Q2A`; the widget never says an email was delivered.
 
 - **Duplicates:** each reviewed request carries an idempotency key, so double-clicks and network retries return the original lead. The same contact, ZIP, and service on the same day is also treated as a duplicate. Duplicates don't send a second email.
 - **Email:** sent through Resend right after storing, with an `Idempotency-Key` so a retried send isn't duplicated by the provider. Status `accepted` means Resend accepted the message, not that it reached an inbox.
+- **Saved but not sent:** if storing succeeds and the email attempt then fails or throws, the visitor still gets their reference (the request is saved) and the notification is retried; they aren't asked to resend. If storing fails, the visitor is told the request wasn't saved. If the connection drops, they're told it's unknown whether it was saved and that resending won't create a duplicate.
 - **Failures:** a failed send is recorded (`failed`, attempt count, error code) and retried with backoff (1 minute doubling to 6 hours, 8 attempts, then `gave_up`). Retries run from `npm run widget -- notifications:retry` or the cron endpoint. `leads:list` shows each lead's notification status.
 - **Demo clients** (`isDemo: true`) never email a contractor: their config can't list destinations, and at send time their leads are addressed only to `WIDGET_DEMO_NOTIFY_TO` with a `[DEMO]` subject, or not emailed at all when it's empty.
 - Out-of-area ZIP codes are accepted but flagged in the email, and the visitor is warned on the review screen.
@@ -211,7 +212,7 @@ Nothing has been deployed or purchased. To launch:
 
 - No web admin dashboard, appointment scheduling, CRM integration, or billing (by design for this version).
 - Email is the only notification channel.
-- US 5-digit ZIP codes and 10-digit US phone numbers only.
+- US 5-digit ZIP codes only. Phone numbers: US 10-digit, or international in `+country` format (not validated per country).
 - The AI output guard is a pattern check. It blocks invented prices, ZIPs, contact details, appointment confirmations, and common availability promises, but it can't catch every invented policy; the system prompt and the approved-facts-only design carry most of that weight. Review real conversations with each contractor early on.
 - The embedded local database allows one process at a time.
 - The widget is English only.

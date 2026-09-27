@@ -8,10 +8,11 @@ import { getActiveClient } from "./clients.ts";
 import { findConversation, notFound, rateLimited, type Failure } from "./conversations.ts";
 import type { WidgetDeps } from "./deps.ts";
 import {
+  ANY_DAY,
   formatPhone,
   hasLeadErrors,
   normalizeLead,
-  phoneDigits,
+  parsePhone,
   validateLead,
   type LeadErrors,
 } from "./lead-fields.ts";
@@ -75,12 +76,14 @@ export async function submitLead(
   const errors = validateLead(
     lead,
     client.profile.services.map((service) => service.name),
+    { timeZone: client.profile.timeZone, hours: client.profile.hours, now },
   );
   if (hasLeadErrors(errors)) return { ok: false, status: 422, error: "invalid", errors };
 
   const email = lead.email || null;
-  const digits = lead.phone ? phoneDigits(lead.phone) : null;
-  const phone = digits ? formatPhone(digits) : null;
+  const parsedPhone = lead.phone ? parsePhone(lead.phone) : null;
+  const digits = parsedPhone?.digits ?? null;
+  const phone = parsedPhone ? formatPhone(parsedPhone) : null;
   const inServiceArea = isInServiceArea(client, lead.zip);
 
   // A retried submission (same idempotency key) returns the original lead.
@@ -105,8 +108,8 @@ export async function submitLead(
       const rows = await deps.db.query<{ lead_id: string; reference: string; notification_id: string }>(
         `WITH new_lead AS (
            INSERT INTO leads (client_id, conversation_id, reference, idempotency_key, dedupe_key, name, email, phone,
-                              zip, in_service_area, service, details, preferred_time, time_zone, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                              zip, in_service_area, service, details, preferred_time, time_zone, created_at, preferred_day)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $17::date)
            ON CONFLICT (client_id, idempotency_key) DO NOTHING
            RETURNING id, reference
          ), new_notification AS (
@@ -134,6 +137,7 @@ export async function submitLead(
           now,
           // Demo leads are emailed only when a demo inbox is configured, and only to that inbox.
           client.isDemo && demoNotifyTo().length === 0 ? "suppressed_demo" : "pending",
+          lead.preferredDay === ANY_DAY ? null : lead.preferredDay,
         ],
       );
       inserted = rows[0];
@@ -157,8 +161,20 @@ export async function submitLead(
     return { ok: true, reference: existing[0].reference, duplicate: true, inServiceArea: existing[0].in_service_area, notification: "existing" };
   }
 
-  const notification =
-    client.isDemo && demoNotifyTo().length === 0 ? "suppressed_demo" : await deliverNotification(deps, inserted.notification_id);
+  // The request is stored at this point. A failure while notifying must never be reported to the
+  // visitor as a failed submission (they'd send it again); the notification stays pending/failed
+  // in the database and the retry job picks it up.
+  let notification: DeliveryOutcome;
+  if (client.isDemo && demoNotifyTo().length === 0) {
+    notification = "suppressed_demo";
+  } else {
+    try {
+      notification = await deliverNotification(deps, inserted.notification_id);
+    } catch (error) {
+      console.error("[widget] lead notification attempt errored", { notificationId: inserted.notification_id, error: (error as Error).name });
+      notification = "failed";
+    }
+  }
   return { ok: true, reference: inserted.reference, duplicate: false, inServiceArea, notification };
 }
 

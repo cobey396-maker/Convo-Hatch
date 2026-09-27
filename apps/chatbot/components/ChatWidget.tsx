@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import type { PublicClientView } from "@/lib/config";
+import { extractTypedDetails, type TypedDetails } from "@/lib/lead-fields";
 import { post, tellHost } from "./api";
 import { CallbackForm } from "./CallbackForm";
 
@@ -29,6 +30,8 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
   const [chatClosed, setChatClosed] = useState(false);
   const [view, setView] = useState<"chat" | "callback">("chat");
   const [notice, setNotice] = useState("");
+  // Contact details typed into the chat stay in this browser only, to prefill the callback form.
+  const [typedDetails, setTypedDetails] = useState<TypedDetails>({});
 
   const conversationId = useRef<string | null>(null);
   const starting = useRef<Promise<string | null> | null>(null);
@@ -79,7 +82,8 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
   }, []);
 
   /** Chats start on first use, so page views that never open the widget don't count against limits. */
-  const ensureConversation = useCallback(async (): Promise<string | null> => {
+  const ensureConversation = useCallback(async (forceNew = false): Promise<string | null> => {
+    if (forceNew) conversationId.current = null;
     if (conversationId.current) return conversationId.current;
     starting.current ??= (async () => {
       const result = await post<{ conversationId: string }>("/api/widget/conversations", { publicId: client.publicId });
@@ -88,7 +92,10 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
         conversationId.current = result.data.conversationId;
         return conversationId.current;
       }
-      setNotice(result?.data.message ?? "The chat couldn’t connect. Please check your connection and try again.");
+      setNotice(
+        result?.data.message ??
+          (result ? "The chat is having trouble right now. Please try again in a minute." : "The chat couldn’t connect. Please check your connection and try again."),
+      );
       return null;
     })();
     return starting.current;
@@ -100,15 +107,20 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
     setDraft("");
     setNotice("");
     add({ from: "user", text });
+    const typed = extractTypedDetails(text);
+    if (Object.keys(typed).length) setTypedDetails((current) => ({ ...current, ...typed }));
     setWaiting(true);
 
-    const id = await ensureConversation();
-    const result = id
-      ? await post<{ reply: { text: string; source: Source; suggestCallback?: boolean }; aiAvailable: boolean; conversationClosed?: boolean }>(
-          "/api/widget/messages",
-          { publicId: client.publicId, conversationId: id, message: text },
-        )
-      : null;
+    type MessageResponse = { reply: { text: string; source: Source; suggestCallback?: boolean }; aiAvailable: boolean; conversationClosed?: boolean };
+    const send = async (id: string | null) =>
+      id ? post<MessageResponse>("/api/widget/messages", { publicId: client.publicId, conversationId: id, message: text }) : null;
+    let id = await ensureConversation();
+    let result = await send(id);
+    // The chat expired (for example a tab left open for weeks): continue in a fresh one.
+    if (result?.status === 404) {
+      id = await ensureConversation(true);
+      result = await send(id);
+    }
     setWaiting(false);
 
     if (result?.status === 200) {
@@ -116,7 +128,12 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
       setAiAvailable(result.data.aiAvailable);
       if (result.data.conversationClosed) setChatClosed(true);
     } else if (id) {
-      setNotice(result?.data.message ?? "That message didn’t go through. Please try again.");
+      setNotice(
+        result?.data.message ??
+          (result
+            ? "Something went wrong on our side, and that message didn’t go through. Please try again."
+            : "That message didn’t go through. Check your connection and try again."),
+      );
     }
     inputRef.current?.focus();
   }
@@ -124,6 +141,21 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void ask(draft);
+  }
+
+  /** Clears this visitor's chat and request state (the demo's "Start over"). Server data is untouched. */
+  function startOver() {
+    conversationId.current = null;
+    starting.current = null;
+    nextId.current = 1;
+    setMessages([{ id: 0, from: "assistant", text: client.branding.greeting }]);
+    setDraft("");
+    setWaiting(false);
+    setChatClosed(false);
+    setNotice("");
+    setTypedDetails({});
+    setView("chat");
+    setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   function closeCallback(message?: string) {
@@ -137,7 +169,10 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
     "--brand-text": client.branding.textColor,
   } as CSSProperties;
   const showStarters = messages.length === 1;
-  const starters = [...client.faqs.slice(0, 2).map((faq) => faq.question), "Do you serve my ZIP code?", "What are your hours?"];
+  // Demo starters show an approved answer, a ZIP check, a sample price, and a service that isn't offered.
+  const starters = client.isDemo
+    ? ["What services do you offer?", "Do you serve ZIP 54321?", "How much does a repair visit cost?", "Do you clean ducts?"]
+    : [...client.faqs.slice(0, 2).map((faq) => faq.question), "Do you serve my ZIP code?", "What are your hours?"];
 
   return (
     <div style={brand} className="flex h-dvh flex-col bg-white font-sans text-gray-900">
@@ -146,11 +181,21 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
           <h1 className="truncate font-sans text-base font-semibold tracking-normal">{client.businessName}</h1>
           <p className="text-sm opacity-90">AI assistant</p>
         </div>
+        {client.isDemo ? (
+          <button
+            type="button"
+            onClick={startOver}
+            aria-label="Start over: clears this demo chat and request"
+            className="inline-flex h-11 shrink-0 items-center rounded-full bg-black/10 px-3 text-sm font-semibold hover:bg-black/20 focus-visible:outline-[var(--brand-text)]"
+          >
+            Start over
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => tellHost({ type: "close" })}
           aria-label="Close chat"
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/10 hover:bg-black/20 focus-visible:outline-[var(--brand-text)]"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black/10 hover:bg-black/20 focus-visible:outline-[var(--brand-text)]"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M6 6l12 12M18 6 6 18" />
@@ -158,21 +203,19 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
         </button>
       </header>
 
-      <div className="space-y-1 border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs leading-snug text-gray-700">
+      <div className="space-y-0.5 border-b border-gray-200 bg-gray-50 px-4 py-1.5 text-xs leading-snug text-gray-700">
         <p>
-          <strong className="font-semibold">Automated AI assistant.</strong> Answers come only from {client.businessName}’s approved
-          information. It can’t book appointments or give repair advice.
+          <strong className="font-semibold">Automated assistant:</strong> answers only from approved information. Can’t book or give repair
+          advice.
         </p>
         {client.isDemo ? (
-          <p className="font-semibold text-amber-900">Demo of a fictional business: requests are never sent to a contractor.</p>
+          <p className="font-semibold text-amber-900">ConvoHatch demo of a fictional business. Nothing reaches a real contractor.</p>
         ) : null}
-        {!aiAvailable ? (
-          <p className="font-semibold text-gray-900">Live AI is unavailable: automatic answers from approved information only.</p>
-        ) : null}
+        {!aiAvailable ? <p className="font-semibold text-gray-900">Live AI is unavailable: scripted answers only.</p> : null}
       </div>
 
       {view === "callback" ? (
-        <CallbackForm client={client} ensureConversation={ensureConversation} onClose={closeCallback} />
+        <CallbackForm client={client} ensureConversation={ensureConversation} onClose={closeCallback} prefill={typedDetails} />
       ) : (
         <>
           <div
@@ -186,14 +229,14 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
             {messages.map((message) =>
               message.from === "user" ? (
                 <div key={message.id} className="flex justify-end">
-                  <p className="max-w-[85%] rounded-2xl rounded-br-md bg-gray-800 px-4 py-2.5 text-[0.95rem] leading-relaxed whitespace-pre-line text-white">
+                  <p className="max-w-[85%] rounded-2xl rounded-br-md bg-gray-800 px-4 py-2.5 text-[0.95rem] leading-relaxed [overflow-wrap:anywhere] whitespace-pre-line text-white">
                     <span className="sr-only">You: </span>
                     {message.text}
                   </p>
                 </div>
               ) : (
                 <div key={message.id} className="flex flex-col items-start gap-1">
-                  <p className="max-w-[90%] rounded-2xl rounded-bl-md bg-gray-100 px-4 py-2.5 text-[0.95rem] leading-relaxed whitespace-pre-line">
+                  <p className="max-w-[90%] rounded-2xl rounded-bl-md bg-gray-100 px-4 py-2.5 text-[0.95rem] leading-relaxed [overflow-wrap:anywhere] whitespace-pre-line">
                     <span className="sr-only">Assistant: </span>
                     {message.text}
                   </p>
@@ -204,7 +247,7 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
                     <button
                       type="button"
                       onClick={() => setView("callback")}
-                      className="rounded-full border border-[var(--brand)] px-3 py-1 text-sm font-semibold text-gray-900"
+                      className="min-h-11 rounded-full border border-[var(--brand)] px-4 py-2 text-sm font-semibold text-gray-900"
                     >
                       Request a callback
                     </button>
@@ -224,7 +267,7 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
                     key={question}
                     type="button"
                     onClick={() => void ask(question)}
-                    className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-left text-sm text-gray-900 hover:border-gray-500"
+                    className="min-h-11 rounded-full border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 hover:border-gray-500"
                   >
                     {question}
                   </button>
@@ -244,7 +287,7 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
               ref={callbackButtonRef}
               type="button"
               onClick={() => setView("callback")}
-              className="mb-2 w-full rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-text)]"
+              className="mb-2 min-h-11 w-full rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-text)]"
             >
               Request a callback
             </button>
@@ -263,18 +306,24 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
                   maxLength={MAX_MESSAGE}
                   autoComplete="off"
                   placeholder="Type your question…"
-                  className="min-w-0 flex-1 rounded-lg border border-gray-400 px-3 py-2 text-base"
+                  aria-describedby={draft.length > MAX_MESSAGE - 100 ? "widget-message-count" : undefined}
+                  className="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-400 px-3 py-2 text-base"
                 />
                 <button
                   type="submit"
                   disabled={waiting || !draft.trim()}
-                  className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  className="min-h-11 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   Send
                 </button>
               </form>
             )}
-            <p className="mt-2 text-center text-[0.7rem] text-gray-500">Please don’t share personal details in the chat.</p>
+            {draft.length > MAX_MESSAGE - 100 ? (
+              <p id="widget-message-count" className="mt-1 text-right text-xs text-gray-700">
+                {MAX_MESSAGE - draft.length} characters left
+              </p>
+            ) : null}
+            <p className="mt-2 text-center text-xs text-gray-600">Never share card numbers, ID numbers, or passwords here.</p>
           </div>
         </>
       )}

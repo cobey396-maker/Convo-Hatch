@@ -112,7 +112,7 @@ test("a valid lead is stored, then the notification is sent and marked accepted 
   const [email] = f.email.sent;
   assert.deepEqual(email.to, ["office@alpha.example"]);
   assert.match(email.text, /not a confirmed appointment/);
-  assert.match(email.text, /Morning \(8 AM – 12 PM\), Central Daylight Time \(America\/Chicago\)/);
+  assert.match(email.text, /Preferred callback: First available day, Morning \(8 AM – 12 PM\) \(Central Daylight Time, America\/Chicago\) — a preference, not a scheduled time/);
   assert.match(email.subject, new RegExp(result.reference));
 });
 

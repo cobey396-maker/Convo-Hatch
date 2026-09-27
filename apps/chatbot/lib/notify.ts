@@ -6,6 +6,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { timeZoneLabel } from "./config.ts";
+import { ANY_DAY, describeCallbackPreference } from "./lead-fields.ts";
 import type { WidgetDeps } from "./deps.ts";
 
 export interface OutgoingEmail {
@@ -132,12 +133,18 @@ interface LeadForEmail {
   service: string;
   details: string | null;
   preferred_time: string;
+  preferred_day?: string | Date | null;
   time_zone: string;
   created_at: Date;
   business_name: string;
   business_time_zone: string;
   is_demo: boolean;
   lead_destination_emails: string[];
+}
+
+function preferredDayValue(value: string | Date | null | undefined): string {
+  if (!value) return ANY_DAY;
+  return typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
 }
 
 export function buildLeadEmail(
@@ -168,7 +175,10 @@ export function buildLeadEmail(
     `Email: ${lead.email ?? "Not provided"}`,
     `Service ZIP code: ${lead.zip} (${lead.in_service_area ? "in your service-area list" : "NOT in your service-area list"})`,
     `Service needed: ${singleLine(lead.service)}`,
-    `Preferred callback time: ${lead.preferred_time}, ${timeZoneLabel(lead.time_zone)} (${lead.time_zone})`,
+    `Preferred callback: ${describeCallbackPreference(
+      { preferredDay: preferredDayValue(lead.preferred_day), preferredTime: lead.preferred_time, timeZone: lead.time_zone },
+      `${timeZoneLabel(lead.time_zone)}, ${lead.time_zone}`,
+    )} — a preference, not a scheduled time`,
     `Submitted: ${submitted}`,
     "",
     "Details from the visitor:",
@@ -219,7 +229,7 @@ export async function deliverNotification(deps: WidgetDeps, notificationId: stri
 
   const leads = await deps.db.query<LeadForEmail>(
     `SELECT l.reference, l.name, l.email, l.phone, l.zip, l.in_service_area, l.service, l.details,
-            l.preferred_time, l.time_zone, l.created_at, c.business_name, c.profile->>'timeZone' AS business_time_zone,
+            l.preferred_time, l.preferred_day::text AS preferred_day, l.time_zone, l.created_at, c.business_name, c.profile->>'timeZone' AS business_time_zone,
             c.is_demo, c.lead_destination_emails
      FROM leads l JOIN clients c ON c.id = l.client_id
      WHERE l.id = $1`,
