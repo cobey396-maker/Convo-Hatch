@@ -1,5 +1,5 @@
 import { demo } from "@/content/site";
-import { ChatbotDemo } from "./ChatbotDemo";
+import { LiveChatbotDemo } from "./LiveChatbotDemo";
 import { Icon } from "./Icon";
 import { Container, SectionHeading } from "./ui";
 
@@ -40,7 +40,7 @@ export function DemoSection() {
           </div>
         </div>
 
-        <ChatbotDemo />
+        <LiveChatbotDemo />
       </Container>
     </section>
   );

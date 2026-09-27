@@ -32,7 +32,7 @@ export const summaries = {
   benefits: `It gives visitors an immediate response, captures contact details and service needs, cuts down on repetitive questions for your office, and turns conversations into organized requests your team can follow up on.`,
   howItWorks: `${howItWorks.steps.map((step, index) => `${index + 1}) ${step.title}: ${step.body}`).join(" ")}`,
   industries: `We’re starting with HVAC contractors, and we also build chatbots for plumbing, electrical, roofing, and other local service businesses.`,
-  tryDemo: `You can try a sample chatbot in the “Try a sample chatbot” section on this page. It uses a fictional HVAC company and scripted replies, and nothing you enter there is sent anywhere.`,
+  tryDemo: `You can try a sample chatbot in the “Try a sample chatbot” section on this page. It’s the real ConvoHatch chatbot set up for a fictional HVAC company. Callback requests sent there go to a test database, never to a contractor.`,
   requestDemo: `${demoRequest.intro} The form is in the “Request a demo” section at the bottom of this page.`,
   noContactDetails: `It can’t pass messages along. To get in touch, use the demo request form at the bottom of this page.`,
   noClaims: `We don’t publish performance guarantees, client lists, or statistics. The best way to see whether it fits your business is to request a demo.`,

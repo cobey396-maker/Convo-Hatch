@@ -6,7 +6,8 @@ import { getActiveClient } from "@/lib/clients";
 import { toPublicView } from "@/lib/config";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
 
-// The chat panel shown inside the iframe that public/widget.js adds to a client's website.
+// The chat panel shown inside the iframe that public/widget.js adds to a client's website, or
+// framed directly in a page section with ?layout=inline.
 // Which sites may frame it is set per client in middleware.ts.
 
 export const dynamic = "force-dynamic";
@@ -16,8 +17,16 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function EmbedPage({ params }: { params: Promise<{ publicId: string }> }) {
+export default async function EmbedPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ publicId: string }>;
+  searchParams: Promise<{ layout?: string | string[] }>;
+}) {
   const { publicId } = await params;
+  // ?layout=inline: framed directly inside a page section (no loader, no close button).
+  const inline = (await searchParams).layout === "inline";
 
   if (!isDatabaseConfigured()) {
     return (
@@ -30,5 +39,5 @@ export default async function EmbedPage({ params }: { params: Promise<{ publicId
   const client = await getActiveClient(await getDb(), publicId);
   if (!client) notFound();
 
-  return <ChatWidget client={toPublicView(client)} aiAvailable={isWidgetAiConfigured()} />;
+  return <ChatWidget client={toPublicView(client)} aiAvailable={isWidgetAiConfigured()} inline={inline} />;
 }

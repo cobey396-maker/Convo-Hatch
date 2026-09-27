@@ -1,5 +1,9 @@
 # Presenting the ConvoHatch demo
 
+Where it's live:
+- On the ConvoHatch marketing site, in the "Try a sample chatbot" section (https://convo-hatch.vercel.app/#demo), framed inline.
+- Installed on a sample contractor site at https://convo-hatch-chatbot.vercel.app/demo.
+
 The demo runs the real widget, embedded with the real installation snippet, on a fictional contractor's site. The contractor is **Cedar Hollow Heating & Air (demo)** (`db/clients/demo-cedar-hollow.json`). Its details:
 
 - Springfield (fictional), Central time.

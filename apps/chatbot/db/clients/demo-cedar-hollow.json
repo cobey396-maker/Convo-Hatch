@@ -108,6 +108,6 @@
   },
   "serviceZipCodes": ["54321", "54322", "54323", "54325", "54330"],
   "leadDestinationEmails": [],
-  "allowedOrigins": ["http://localhost:4000", "https://convo-hatch-chatbot.vercel.app"],
+  "allowedOrigins": ["http://localhost:4000", "https://convo-hatch-chatbot.vercel.app", "https://convo-hatch.vercel.app"],
   "limits": {}
 }

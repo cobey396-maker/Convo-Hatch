@@ -374,8 +374,7 @@ describe("intake", () => {
     assert.equal(extractTypedDetails("email me at Jordan@Example.com").email, "jordan@example.com");
   });
 
-  async function submitDemo(lead: Record<string, string>, key = idempotencyKey(), deps = f.deps()) {
-    const visitor = `intake-${(visitorCounter += 1)}`;
+  async function submitDemo(lead: Record<string, string>, key = idempotencyKey(), visitor = `intake-${(visitorCounter += 1)}`, deps = f.deps()) {
     const started = await startConversation(deps, { publicId: DEMO_ID, visitor });
     assert.ok(started.ok);
     return submitLead(deps, { publicId: DEMO_ID, conversationId: started.conversationId, visitor, body: { confirmed: true, idempotencyKey: key, lead } });
@@ -410,13 +409,30 @@ describe("intake", () => {
   test("the same request from a refresh (new key) or a retry (same key) isn't duplicated", async () => {
     const key = idempotencyKey();
     const lead = demoLead({ phone: "555-010-0155" });
-    const first = await submitDemo(lead, key);
-    const retry = await submitDemo(lead, key);
-    const refresh = await submitDemo(lead);
+    // A refresh starts a new conversation from the same visitor.
+    const first = await submitDemo(lead, key, "refreshing-visitor");
+    const retry = await submitDemo(lead, key, "refreshing-visitor");
+    const refresh = await submitDemo(lead, undefined, "refreshing-visitor");
     assert.ok(first.ok && retry.ok && refresh.ok);
     assert.equal(retry.reference, first.reference);
     assert.equal(refresh.reference, first.reference);
     assert.equal(refresh.duplicate, true);
+  });
+
+  test("on the demo, two visitors using the same sample details each get their own request", async () => {
+    const lead = demoLead({ phone: "(555) 010-0142", zip: "54321" });
+    const submitAs = async (visitor: string) => {
+      const started = await startConversation(f.deps(), { publicId: DEMO_ID, visitor });
+      assert.ok(started.ok);
+      return submitLead(f.deps(), { publicId: DEMO_ID, conversationId: started.conversationId, visitor, body: { confirmed: true, idempotencyKey: idempotencyKey(), lead } });
+    };
+    const first = await submitAs("sample-visitor-a");
+    const second = await submitAs("sample-visitor-b");
+    const again = await submitAs("sample-visitor-a");
+    assert.ok(first.ok && second.ok && again.ok);
+    assert.notEqual(second.reference, first.reference);
+    assert.equal(second.duplicate, false);
+    assert.equal(again.reference, first.reference);
   });
 
   test("a second property (different ZIP) is kept as a separate request", async () => {

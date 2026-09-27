@@ -142,6 +142,10 @@ Then add the site's exact origin(s) to the client's `allowedOrigins`, reload the
 
 Optional attributes: `data-position="left"`; `data-offset-bottom="24"`; `data-mobile-offset-bottom="80"` to sit above a sticky "Call now" bar on phones. Any button on the site can open the chat with `onclick="ConvoHatch.open()"`.
 
+### Inline embed (no pop-up)
+
+To show the chat inside a page section instead of as a pop-up, frame `/embed/<client-id>?layout=inline` directly (for example in a 640px-tall `<iframe>`). It has no close button and doesn't take focus on load. The page's origin must still be in the client's `allowedOrigins`. The ConvoHatch marketing site's demo section uses this for the demo client.
+
 ## How answers work
 
 Every message is handled on the server, in this order, using only the requesting client's settings:
@@ -162,7 +166,7 @@ The visitor fills in name, phone (US, or international starting with `+`) and/or
 
 The server re-validates everything, then stores the lead and its notification record in a single database statement **before** reporting success. The visitor sees a reference like `CH-7K3M9Q2A`; the widget never says an email was delivered.
 
-- **Duplicates:** each reviewed request carries an idempotency key, so double-clicks and network retries return the original lead. The same contact, ZIP, and service on the same day is also treated as a duplicate. Duplicates don't send a second email.
+- **Duplicates:** each reviewed request carries an idempotency key, so double-clicks and network retries return the original lead. The same contact, ZIP, and service on the same day is also treated as a duplicate. Duplicates don't send a second email. On demo clients that same-day check is per visitor (hashed IP), because many visitors use the same fictional sample details.
 - **Email:** sent through Resend right after storing, with an `Idempotency-Key` so a retried send isn't duplicated by the provider. Status `accepted` means Resend accepted the message, not that it reached an inbox.
 - **Saved but not sent:** if storing succeeds and the email attempt then fails or throws, the visitor still gets their reference (the request is saved) and the notification is retried; they aren't asked to resend. If storing fails, the visitor is told the request wasn't saved. If the connection drops, they're told it's unknown whether it was saved and that resending won't create a duplicate.
 - **Failures:** a failed send is recorded (`failed`, attempt count, error code) and retried with backoff (1 minute doubling to 6 hours, 8 attempts, then `gave_up`). Retries run from `npm run widget -- notifications:retry` or the cron endpoint. `leads:list` shows each lead's notification status.

@@ -34,6 +34,9 @@ export function SiteAssistant() {
   const [messages, setMessages] = useState<Message[]>(greeting);
   const [draft, setDraft] = useState("");
   const [waiting, setWaiting] = useState(false);
+  // The live demo chat has its own input at the bottom; hide this launcher while it's on screen
+  // so the two don't overlap (and visitors aren't shown two chats at once).
+  const [demoChatVisible, setDemoChatVisible] = useState(false);
 
   const nextId = useRef(1);
   const launcherRef = useRef<HTMLButtonElement>(null);
@@ -56,6 +59,14 @@ export function SiteAssistant() {
         if (!(error instanceof DOMException && error.name === "AbortError")) setMode("scripted");
       });
     return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const demoChat = document.getElementById("live-demo-chat");
+    if (!demoChat || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setDemoChatVisible(entry.isIntersecting), { threshold: 0.15 });
+    observer.observe(demoChat);
+    return () => observer.disconnect();
   }, []);
 
   // Focus the input on open; return focus to the launcher once it's visible again after closing.
@@ -291,7 +302,7 @@ export function SiteAssistant() {
         aria-controls="site-assistant"
         onClick={() => setOpen((value) => !value)}
         className={`items-center gap-2 rounded-full bg-petrol p-2.5 font-semibold text-white shadow-lift transition-colors hover:bg-ocean sm:py-2.5 sm:pr-5 sm:pl-3 ${
-          open ? "hidden" : "inline-flex"
+          open || demoChatVisible ? "hidden" : "inline-flex"
         }`}
       >
         <span className="grid h-8 w-8 place-items-center rounded-full bg-white/10">
