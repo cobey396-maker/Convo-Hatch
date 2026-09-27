@@ -20,9 +20,11 @@ interface Message {
 interface Props {
   client: PublicClientView;
   aiAvailable: boolean;
+  /** Shown inside a page section rather than as a pop-up panel, so there's nothing to close. */
+  inline?: boolean;
 }
 
-export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
+export function ChatWidget({ client, aiAvailable: aiInitially, inline = false }: Props) {
   const [messages, setMessages] = useState<Message[]>([{ id: 0, from: "assistant", text: client.branding.greeting }]);
   const [draft, setDraft] = useState("");
   const [waiting, setWaiting] = useState(false);
@@ -68,9 +70,10 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") tellHost({ type: "close" });
     }
+    if (inline) return;
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [inline]);
 
   useEffect(() => {
     const log = logRef.current;
@@ -191,16 +194,18 @@ export function ChatWidget({ client, aiAvailable: aiInitially }: Props) {
             Start over
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={() => tellHost({ type: "close" })}
-          aria-label="Close chat"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black/10 hover:bg-black/20 focus-visible:outline-[var(--brand-text)]"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M6 6l12 12M18 6 6 18" />
-          </svg>
-        </button>
+        {inline ? null : (
+          <button
+            type="button"
+            onClick={() => tellHost({ type: "close" })}
+            aria-label="Close chat"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black/10 hover:bg-black/20 focus-visible:outline-[var(--brand-text)]"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        )}
       </header>
 
       <div className="space-y-0.5 border-b border-gray-200 bg-gray-50 px-4 py-1.5 text-xs leading-snug text-gray-700">

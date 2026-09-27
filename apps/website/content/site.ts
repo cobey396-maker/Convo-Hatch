@@ -105,25 +105,32 @@ export const howItWorks = {
   },
 } as const;
 
+// Where the ConvoHatch chatbot app runs. Override at build time to test against a local copy.
+const CHATBOT_BASE_URL = process.env.NEXT_PUBLIC_CHATBOT_BASE_URL || "https://convo-hatch-chatbot.vercel.app";
+
 export const demo = {
   eyebrow: "Interactive demo",
   heading: "Try a sample chatbot.",
   intro:
-    "This demo uses a fictional HVAC company and scripted replies that run in your browser. Nothing you do here is sent anywhere, and no appointment is booked.",
+    "This is the real ConvoHatch chatbot, set up for Cedar Hollow Heating & Air, a fictional HVAC company. Callback requests you send here are saved in a test database and never reach a contractor, and no appointment is booked.",
+  // The live demo is served by the ConvoHatch chatbot app and framed inline here.
+  embedUrl: `${CHATBOT_BASE_URL}/embed/demo-cedar-hollow?layout=inline`,
+  fullDemoUrl: `${CHATBOT_BASE_URL}/demo`,
+  tryThis: "Try: “Do you serve ZIP 54321?”, “Do you sell pool heaters?”, or “Request a callback” with the fictional sample details.",
   shows: {
     title: "What this demo shows",
     items: [
-      "Checking whether an address is in the service area",
-      "Collecting the service type, ZIP code, and callback time",
-      "Answering approved questions, like office hours",
-      "Handing off to a person instead of guessing",
+      "Checking whether a ZIP code is in the service area",
+      "Answering only from the business’s approved information",
+      "Collecting a callback request you review before sending",
+      "Saying so when it doesn’t know, instead of guessing",
     ],
   },
   wontDo: {
     title: "What it won’t do",
     items: [
       "Give repair instructions",
-      "Quote prices",
+      "Quote prices the business hasn’t approved",
       "Promise a technician or time slot",
     ],
   },

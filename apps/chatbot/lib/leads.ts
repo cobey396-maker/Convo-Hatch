@@ -28,10 +28,20 @@ export function newReference(): string {
   return `CH-${code}`;
 }
 
-export function dedupeKey(clientId: string, fields: { email: string | null; phone: string | null; zip: string; service: string }, now: Date) {
+/**
+ * Same contact, ZIP, and service on the same day counts as one request. On demo clients many
+ * visitors use the same fictional sample details, so there it's also scoped to the visitor
+ * (hashed IP); otherwise one visitor would be told another's request was theirs.
+ */
+export function dedupeKey(
+  clientId: string,
+  fields: { email: string | null; phone: string | null; zip: string; service: string },
+  now: Date,
+  visitorScope = "",
+) {
   const day = now.toISOString().slice(0, 10);
   return createHash("sha256")
-    .update([clientId, fields.email ?? "", fields.phone ?? "", fields.zip, fields.service.toLowerCase(), day].join("|"))
+    .update([clientId, fields.email ?? "", fields.phone ?? "", fields.zip, fields.service.toLowerCase(), day, visitorScope].join("|"))
     .digest("hex");
 }
 
@@ -100,7 +110,7 @@ export async function submitLead(
     return { ok: false, status: 429, error: "client_lead_limit", message: `Online requests are paused for today.${phoneLine}` };
   }
 
-  const dedupe = dedupeKey(client.id, { email, phone: digits, zip: lead.zip, service: lead.service }, now);
+  const dedupe = dedupeKey(client.id, { email, phone: digits, zip: lead.zip, service: lead.service }, now, client.isDemo ? input.visitor : "");
   let inserted: { lead_id: string; reference: string; notification_id: string } | undefined;
   for (let attempt = 0; attempt < 3 && !inserted; attempt += 1) {
     try {
