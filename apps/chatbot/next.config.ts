@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Loaded at runtime by the database layer rather than bundled.
   serverExternalPackages: ["@electric-sql/pglite", "pg"],
+  // The fictional contractor demo page (public/demo.html) at a clean URL.
+  async rewrites() {
+    return [{ source: "/demo", destination: "/demo.html" }];
+  },
   async headers() {
     return [
       {
