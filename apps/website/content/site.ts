@@ -1,5 +1,8 @@
 // All marketing copy lives here so it can be edited without touching layout code.
 
+// Where the ConvoHatch chatbot app runs. Override at build time to test against a local copy.
+const CHATBOT_BASE_URL = process.env.NEXT_PUBLIC_CHATBOT_BASE_URL || "https://convo-hatch-chatbot.vercel.app";
+
 export const site = {
   name: "ConvoHatch",
   tagline: "Smart conversations. More booked jobs.",
@@ -25,7 +28,8 @@ export const hero = {
   headline: "Your next customer shouldn’t have to wait.",
   body: "ConvoHatch adds a custom AI chatbot to your website to answer common questions, capture service requests, and help visitors take the next step—even after hours.",
   primaryCta: { label: "Request a Demo", href: "/#request-demo" },
-  secondaryCta: { label: "Try the Chatbot", href: "/#demo" },
+  // Opens the live chatbot demo on a sample contractor website.
+  secondaryCta: { label: "Try the Chatbot", href: `${CHATBOT_BASE_URL}/demo` },
   note: "Built for HVAC contractors first, and for plumbing, electrical, roofing, and other trades.",
   preview: {
     label: "Example conversation",
@@ -104,9 +108,6 @@ export const howItWorks = {
     body: "Whether the chatbot can book appointments depends on the scheduling tools you use and how they’re set up. By default, it captures service requests for your team. A captured request isn’t a confirmed appointment until your office confirms it.",
   },
 } as const;
-
-// Where the ConvoHatch chatbot app runs. Override at build time to test against a local copy.
-const CHATBOT_BASE_URL = process.env.NEXT_PUBLIC_CHATBOT_BASE_URL || "https://convo-hatch-chatbot.vercel.app";
 
 export const demo = {
   eyebrow: "Interactive demo",
