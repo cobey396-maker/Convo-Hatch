@@ -4,7 +4,7 @@
 import { readFile } from "node:fs/promises";
 import { getClient, listClients, setClientActive, upsertClient } from "../lib/clients.ts";
 import { validateClientConfig } from "../lib/config.ts";
-import { DatabaseNotConfiguredError, migrate, openDb, type Db } from "../lib/db.ts";
+import { DatabaseNotConfiguredError, databaseUrl, migrate, openDb, type Db } from "../lib/db.ts";
 import { emailSender, retryDueNotifications } from "../lib/notify.ts";
 import { purgeExpired, retentionSettings } from "../lib/retention.ts";
 import { installationSnippet, widgetBaseUrl } from "../lib/snippet.ts";
@@ -13,6 +13,8 @@ const HELP = `ConvoHatch widget administration
 
   migrate                      Apply database migrations
   seed                         Migrate, then load the fictional demo client (db/clients/demo-cedar-hollow.json)
+  deploy:prepare               Used by the Vercel build: migrate and load the demo client when a
+                               PostgreSQL DATABASE_URL (or POSTGRES_URL) is set; skip otherwise
   client:upsert <file.json>    Validate a client config file and create or update that client
   client:check <file.json>     Validate a client config file without saving it
   client:list                  List clients
@@ -108,6 +110,24 @@ async function main() {
         console.log(`\nInstallation snippet:\n${snippetHelp(client.publicId)}`);
       });
       return;
+
+    case "deploy:prepare": {
+      // Runs before every Vercel build, so a newly connected database is set up without any
+      // manual commands. Without a database the build continues and the widget reports itself
+      // as unavailable.
+      const url = databaseUrl();
+      if (!/^postgres(ql)?:\/\//i.test(url)) {
+        console.log("deploy:prepare: no PostgreSQL DATABASE_URL set; skipping database setup.");
+        return;
+      }
+      await withDb(async (db) => {
+        const applied = await migrate(db);
+        console.log(`deploy:prepare: ${applied.length ? `applied ${applied.join(", ")}` : "database is up to date"}.`);
+        const client = await upsertClient(db, await loadConfigFile("db/clients/demo-cedar-hollow.json"));
+        console.log(`deploy:prepare: demo client ${client.publicId} is ready.`);
+      });
+      return;
+    }
 
     case "client:check": {
       const config = await loadConfigFile(args[0]);

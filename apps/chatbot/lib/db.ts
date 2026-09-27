@@ -24,7 +24,8 @@ export class DatabaseNotConfiguredError extends Error {
 }
 
 export function databaseUrl(): string {
-  return process.env.DATABASE_URL?.trim() ?? "";
+  // POSTGRES_URL is what some Vercel Marketplace Postgres integrations set instead.
+  return process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim() || "";
 }
 
 export function isDatabaseConfigured(): boolean {

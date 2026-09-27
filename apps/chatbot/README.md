@@ -33,7 +33,7 @@ Contractor's website                           This app (apps/chatbot)
 | `db/migrations/` | SQL migrations. |
 | `db/clients/` | Client configuration files: `demo-cedar-hollow.json` (fictional demo) and `example-client.json` (template). |
 | `scripts/widget.ts` | Admin CLI: migrations, seeding, client configuration, snippets, leads, retries, retention. |
-| `demo-site/` + `scripts/demo-site-server.mjs` | A fictional contractor website on a separate origin that loads the widget through the real installation snippet. |
+| `public/demo.html` + `scripts/demo-site-server.mjs` | A fictional contractor website that loads the widget through the real installation snippet. Deployed at `/demo`; locally, `npm run demo:site` serves it on a separate origin (`localhost:4000`) to exercise real cross-origin embedding. |
 | `scripts/e2e-widget.mjs` | Browser test of the embedded widget (desktop keyboard flow, mobile, blocked origins). |
 | `tests/` | Unit and integration tests (in-memory PostgreSQL). |
 
@@ -188,7 +188,13 @@ The server re-validates everything, then stores the lead and its notification re
 
 Deletion runs with `npm run widget -- purge` or the cron endpoint. Leads are also delivered by email, and those copies are governed by the contractor's mailbox, not this app. Conversations are sent to Anthropic for AI replies when AI is enabled; see Anthropic's data retention terms for your account. Publish a privacy notice covering this before launch.
 
-## Deploying (not done yet)
+## Deployment (Vercel)
+
+The chatbot is deployed as its own Vercel project, `convo-hatch-chatbot` (production: https://convo-hatch-chatbot.vercel.app, demo at `/demo`), separate from the website project. Settings: root directory `apps/chatbot`, build command `npm run build:vercel`, Vercel Authentication on preview deployments only (the production widget must be publicly loadable). `CRON_SECRET` and `WIDGET_HASH_SECRET` are set in the project.
+
+`build:vercel` runs `npm run widget -- deploy:prepare` before `next build`: when a PostgreSQL `DATABASE_URL` (or `POSTGRES_URL`) is set, it applies migrations and loads the demo client, so connecting a database needs no manual commands. Without one, the build still succeeds and the widget shows "The chat is unavailable right now."
+
+## Deploying elsewhere / remaining setup
 
 Nothing has been deployed or purchased. To launch:
 

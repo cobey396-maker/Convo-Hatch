@@ -12,7 +12,8 @@
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "widget": "node --experimental-strip-types --no-warnings scripts/widget.ts",
     "demo:site": "node scripts/demo-site-server.mjs",
-    "test:e2e": "node scripts/e2e-widget.mjs"
+    "test:e2e": "node scripts/e2e-widget.mjs",
+    "build:vercel": "npm run widget -- deploy:prepare && next build"
   },
   "engines": {
     "node": ">=22.6"
