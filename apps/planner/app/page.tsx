@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 
 /**
@@ -7,7 +8,10 @@ import { APP_NAME, APP_TAGLINE } from "@/lib/config";
  */
 export default function Home() {
   return (
-    <main className="pt-safe mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6">
+    <main className="pt-safe relative mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6">
+      <div className="pt-safe absolute right-3 top-2">
+        <ThemeToggle />
+      </div>
       <div className="mb-6 grid size-16 place-items-center rounded-[18px] bg-tint text-3xl text-on-tint shadow-float">
         ✦
       </div>

@@ -18,6 +18,13 @@ npm run dev:planner
 
 Open http://localhost:3002, then http://localhost:3002/design for the style guide.
 
+Tap the sun/moon button (top corner) to cycle **System → Light → Dark**. Your
+choice is remembered in the browser; "System" follows your OS setting.
+
+| Light | Dark |
+| --- | --- |
+| ![Home in light mode](docs/screenshots/home-light.png) | ![Home in dark mode](docs/screenshots/home-dark.png) |
+
 ## Checks
 
 | Command (repo root) | What it does |

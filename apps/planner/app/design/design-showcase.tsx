@@ -13,6 +13,7 @@ import { BlockListSkeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { APP_TABS, TabBar } from "@/components/ui/tab-bar";
 import { TaskBlock } from "@/components/ui/task-block";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { fadeUp, spring, stagger, type SpringName } from "@/lib/design/motion";
 import { TASK_COLOR_NAMES, TASK_COLORS, type TaskColor } from "@/lib/design/tokens";
 import type { ThemePreference } from "@/lib/theme";
@@ -78,6 +79,7 @@ export function DesignShowcase() {
 
   return (
     <LargeTitlePage
+      leading={<ThemeToggle className="-ml-3" />}
       title="Design System"
       subtitle="Tokens and components for every screen. Scroll to see the title shrink."
       trailing={
