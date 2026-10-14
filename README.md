@@ -10,7 +10,6 @@ This repository is an npm workspaces monorepo:
 | --- | --- |
 | `apps/website` | The ConvoHatch marketing website: Next.js (App Router), TypeScript, and Tailwind CSS v4. Fonts are Outfit (headings) and Manrope (body), loaded with `next/font/google`. |
 | `apps/chatbot` | The hosted, embeddable HVAC chatbot service (a separate Next.js app). See [`apps/chatbot/README.md`](apps/chatbot/README.md). |
-| `apps/planner` | Auto-Planner, a schedule app that plans your week automatically (a separate Next.js app on port 3002). See [`apps/planner/README.md`](apps/planner/README.md). |
 | `package.json` | Workspace root, with shortcut commands for the website. |
 | `package-lock.json` | The single lockfile for all workspaces. Run `npm install` from the root only. |
 
