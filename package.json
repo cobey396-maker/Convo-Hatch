@@ -12,7 +12,11 @@
     "lint": "npm run lint -w @convohatch/website",
     "typecheck": "npm run typecheck -w @convohatch/website",
     "test": "npm test -w @convohatch/website",
-    "check": "npm run check -w @convohatch/website"
+    "check": "npm run check -w @convohatch/website",
+    "dev:planner": "npm run dev -w @convohatch/planner",
+    "build:planner": "npm run build -w @convohatch/planner",
+    "test:planner": "npm test -w @convohatch/planner",
+    "check:planner": "npm run check -w @convohatch/planner"
   },
   "engines": {
     "node": ">=22.6"

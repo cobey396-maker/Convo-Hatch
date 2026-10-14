@@ -1,0 +1,279 @@
+@import "tailwindcss";
+
+/*
+ * ============================================================================
+ *  DESIGN SYSTEM — the single place where the app's look is defined.
+ * ============================================================================
+ *
+ * How this file is organized:
+ *
+ *  1. Raw color values (CSS custom properties) for LIGHT mode on :root.
+ *  2. The same names re-assigned for DARK mode under [data-theme="dark"].
+ *     A tiny script in app/layout.tsx sets data-theme on <html> before the
+ *     page paints, so there is no white flash when you open the app at night.
+ *  3. A Tailwind `@theme` block that turns those variables into utility
+ *     classes (bg-surface, text-label, rounded-card, text-headline, ...).
+ *
+ * Components only ever use the SEMANTIC names ("surface", "label",
+ * "secondary-label"), never raw hex values. That is why dark mode works
+ * everywhere for free: the names stay the same, only their values change.
+ *
+ * The palette follows Apple's iOS system colors so the app feels native.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Backgrounds: iOS "grouped" style — a light gray page with white cards. */
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --fill: rgb(120 120 128 / 0.12); /* pressed states, input backgrounds */
+
+  /* Text. Secondary/tertiary are translucent so they adapt to any background. */
+  --label: #000000;
+  --secondary-label: rgb(60 60 67 / 0.6);
+  --tertiary-label: rgb(60 60 67 / 0.3);
+  --separator: rgb(60 60 67 / 0.18);
+
+  /* Brand tint: the color of buttons, links and the active tab. */
+  --tint: #007aff;
+  --on-tint: #ffffff;
+  --success: #34c759;
+  --warning: #ff9500;
+  --danger: #ff3b30;
+
+  /* Frosted glass used by the nav bar, tab bar and sheets. */
+  --glass: rgb(249 249 249 / 0.72);
+  --glass-border: rgb(0 0 0 / 0.08);
+
+  /* Task colors. Users pick one per task/event; blocks are tinted with it.
+   * Keep these in sync with TASK_COLORS in lib/design/tokens.ts — a unit
+   * test (tests/unit/tokens.test.ts) fails if the two drift apart. */
+  --task-blue: #007aff;
+  --task-green: #34c759;
+  --task-indigo: #5856d6;
+  --task-orange: #ff9500;
+  --task-pink: #ff2d55;
+  --task-purple: #af52de;
+  --task-red: #ff3b30;
+  --task-teal: #30b0c7;
+  --task-yellow: #ffcc00;
+
+  /* Soft, layered shadows (two layers look more natural than one). */
+  --elev-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06);
+  --elev-float: 0 2px 6px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.12);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* iOS dark mode uses true black so OLED screens save battery. */
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-elevated: #2c2c2e;
+  --fill: rgb(118 118 128 / 0.24);
+
+  --label: #ffffff;
+  --secondary-label: rgb(235 235 245 / 0.6);
+  --tertiary-label: rgb(235 235 245 / 0.3);
+  --separator: rgb(84 84 88 / 0.6);
+
+  --tint: #0a84ff;
+  --on-tint: #ffffff;
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff453a;
+
+  --glass: rgb(29 29 31 / 0.72);
+  --glass-border: rgb(255 255 255 / 0.08);
+
+  /* Dark-mode variants are slightly brighter so they pop on black. */
+  --task-blue: #0a84ff;
+  --task-green: #30d158;
+  --task-indigo: #5e5ce6;
+  --task-orange: #ff9f0a;
+  --task-pink: #ff375f;
+  --task-purple: #bf5af2;
+  --task-red: #ff453a;
+  --task-teal: #40c8e0;
+  --task-yellow: #ffd60a;
+
+  --elev-card: 0 0 0 1px rgb(255 255 255 / 0.04);
+  --elev-float: 0 0 0 1px rgb(255 255 255 / 0.06), 0 12px 32px rgb(0 0 0 / 0.5);
+}
+
+/* Tailwind's `dark:` variant follows our data-theme attribute (not just the
+ * OS setting), so a manual choice in Settings wins over the system. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  /* --- Colors → bg-*, text-*, border-* utilities --- */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-fill: var(--fill);
+  --color-label: var(--label);
+  --color-secondary-label: var(--secondary-label);
+  --color-tertiary-label: var(--tertiary-label);
+  --color-separator: var(--separator);
+  --color-tint: var(--tint);
+  --color-on-tint: var(--on-tint);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+
+  /* --- Typography: system font first, Inter as the cross-platform fallback.
+   * On iPhone/Mac this renders San Francisco; on Android/Windows, Inter. --- */
+  --font-sans: -apple-system, BlinkMacSystemFont, var(--font-inter), Inter, "Segoe UI", Roboto,
+    sans-serif;
+
+  /* Type scale modeled on iOS Dynamic Type (default "Large" size).
+   * Each step sets size, line height, weight and tracking together, so
+   * `text-headline` is a complete style, not just a font size. */
+  --text-large-title: 2.125rem; /* 34px */
+  --text-large-title--line-height: 2.5625rem;
+  --text-large-title--font-weight: 700;
+  --text-large-title--letter-spacing: 0.011em;
+  --text-title1: 1.75rem; /* 28px */
+  --text-title1--line-height: 2.125rem;
+  --text-title1--font-weight: 700;
+  --text-title2: 1.375rem; /* 22px */
+  --text-title2--line-height: 1.75rem;
+  --text-title2--font-weight: 700;
+  --text-title3: 1.25rem; /* 20px */
+  --text-title3--line-height: 1.5625rem;
+  --text-title3--font-weight: 600;
+  --text-headline: 1.0625rem; /* 17px */
+  --text-headline--line-height: 1.375rem;
+  --text-headline--font-weight: 600;
+  --text-body: 1.0625rem; /* 17px */
+  --text-body--line-height: 1.375rem;
+  --text-callout: 1rem; /* 16px */
+  --text-callout--line-height: 1.3125rem;
+  --text-subhead: 0.9375rem; /* 15px */
+  --text-subhead--line-height: 1.25rem;
+  --text-footnote: 0.8125rem; /* 13px */
+  --text-footnote--line-height: 1.125rem;
+  --text-caption: 0.75rem; /* 12px */
+  --text-caption--line-height: 1rem;
+
+  /* --- Corner radii (16–24px range from the brief) --- */
+  --radius-button: 14px;
+  --radius-block: 16px;
+  --radius-card: 20px;
+  --radius-sheet: 24px;
+
+  /* --- Shadows --- */
+  --shadow-card: var(--elev-card);
+  --shadow-float: var(--elev-float);
+
+  /* --- Easing for plain CSS transitions.
+   * The brief says "no linear easing". JS animations use real springs (see
+   * lib/design/motion.ts). For CSS-only transitions we approximate a spring
+   * with the linear() function: a list of points that overshoots slightly
+   * past 1 and settles back, like a real spring would. --- */
+  --ease-spring: linear(
+    0,
+    0.009,
+    0.035 2.1%,
+    0.141 4.4%,
+    0.723 12.9%,
+    0.938 16.7%,
+    1.017 19.4%,
+    1.067,
+    1.089 24.3%,
+    1.098 27.1%,
+    1.077 32.2%,
+    1.026 41.7%,
+    1.003 50%,
+    0.995 57.7%,
+    1
+  );
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1); /* Apple's sheet curve */
+}
+
+/* --- Base styles --- */
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  /* Stop iOS from flashing a gray box when you tap anything. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--label);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent the "rubber band" from revealing a white page behind the app. */
+  overscroll-behavior-y: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--tint);
+  outline-offset: 2px;
+}
+
+/* A colored task block. Set --block to one of the --task-* colors (the
+ * <TaskBlock> component does this for you). The background is the task color
+ * mixed into the surface, so it is soft in light mode and moody in dark mode,
+ * with a solid rounded accent bar on the left. */
+@utility task-block {
+  position: relative;
+  background: color-mix(in srgb, var(--block) 16%, var(--surface));
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 8px;
+    bottom: 8px;
+    width: 4px;
+    border-radius: 9999px;
+    background: var(--block);
+  }
+}
+
+/* Frosted glass: translucent background + blur of whatever scrolls behind. */
+@utility glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Loading skeleton shimmer. */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Safe-area helpers for iPhones with a notch / home indicator. */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/*
+ * Accessibility: people who turn on "Reduce Motion" in their OS settings get
+ * near-instant CSS transitions. JS animations are handled separately by
+ * <MotionConfig reducedMotion="user"> in components/providers.tsx.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
